@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3D Model Viewer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <script async src="https://unpkg.com/es-module-shims@1.3.6/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://unpkg.com/three@0.139.2/build/three.module.js",
+            "three/": "https://unpkg.com/three@0.139.2/"
+          }
+        }
+    </script>
+    <h1>3D Model Viewer for AliceSoft Games</h1>
+    <div class="usage">
+        <p>Drag and drop a <code>.red</code> file onto this page. Currently this supports:</p>
+        <ul>
+            <li>Toushin Toshi 3 (<code>Data/ReignData.red</code>)</li>
+            <li>Rance Quest (<code>Data/ReignData.red</code>)</li>
+        </ul>
+    </div>
+    <div>
+        <input type="file" id="file-select" multiple/>
+        <select id="model-select" hidden></select>
+        <select id="motion-select" hidden></select>
+    </div>
+    <div id="viewer"></div>
+    <script type="module" src="index.js"></script>
+</body>
+</html>

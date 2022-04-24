@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "target": "ES2017",
+        "outDir": "docs",
+        "module": "ESNext",
+        "strict": true,
+        "paths": {
+            "https://unpkg.com/gl-matrix@3.3.0/esm/index.js": [
+                "./src/gl-matrix.d.ts"
+            ]
+        }
+    },
+    "exclude": [
+        "lab",
+        "node_modules",
+    ]
+}
