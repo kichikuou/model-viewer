@@ -24,7 +24,7 @@ export type Object = {
     uk4: number[]
 }
 export type Vertex = {x: number, y: number, z: number, weights: BoneWeight[]}
-type Triangle = {vert_index: number[], uv_index: number[], unknowns: number[], normals: Vec3[], unknown: number};
+export type Triangle = {vert_index: number[], uv_index: number[], unknowns: number[], normals: Vec3[], material_index: number};
 export type Bone = {name: string, id: number, parent: number, pos: Vec3, rotq: Vec4}
 type BoneWeight = {bone: number, weight: number}
 
@@ -81,6 +81,9 @@ export class Pol {
         const children: MaterialInfo[] = [];
         if (can_have_children) {
             const nr_children = r.readU32();
+            if (nr_textures > 0 && nr_children > 0) {
+                throw new Error('A material cannot have both textures and children');
+            }
             for (let i = 0; i < nr_children; i++) {
                 children.push(this.parse_material(r, false));
             }
@@ -140,7 +143,7 @@ export class Pol {
         const nr_triangles = r.readU32();
         const triangles: Triangle[] = [];
         for (let i = 0; i < nr_triangles; i++) {
-            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_uk2, nr_uk4));
+            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_uk2, nr_uk4, materials[material]));
         }
         if (this.version === 1) {
             if (r.readU32() !== 1) {
@@ -168,7 +171,7 @@ export class Pol {
         return {x, y, z, weights};
     }
 
-    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_uk2: number, nr_uk4: number): Triangle {
+    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_uk2: number, nr_uk4: number, material: MaterialInfo): Triangle {
         const vert_index = [
             r.readU32(),
             r.readU32(),
@@ -198,8 +201,10 @@ export class Pol {
         for (let i = 0; i < 3; i++) {
             normals.push(r.readVec3());
         }
-        const unknown = r.readU32();  // sub-material index?
-        return {vert_index, uv_index, unknowns, normals, unknown};
+        const material_index = r.readU32();
+        // if (material && material.children.length > 0 && material_index >= material.children.length)
+        //    console.log([material_index, material.children.length]);
+        return {vert_index, uv_index, unknowns, normals, material_index};
     }
 
     parse_bone(r: BufferReader): Bone {

@@ -58,6 +58,9 @@ export class Pol {
         const children = [];
         if (can_have_children) {
             const nr_children = r.readU32();
+            if (nr_textures > 0 && nr_children > 0) {
+                throw new Error('A material cannot have both textures and children');
+            }
             for (let i = 0; i < nr_children; i++) {
                 children.push(this.parse_material(r, false));
             }
@@ -117,7 +120,7 @@ export class Pol {
         const nr_triangles = r.readU32();
         const triangles = [];
         for (let i = 0; i < nr_triangles; i++) {
-            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_uk2, nr_uk4));
+            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_uk2, nr_uk4, materials[material]));
         }
         if (this.version === 1) {
             if (r.readU32() !== 1) {
@@ -143,7 +146,7 @@ export class Pol {
         weights.sort((a, b) => b.weight - a.weight);
         return { x, y, z, weights };
     }
-    parse_triangle(r, nr_vertices, nr_uvs, nr_uk2, nr_uk4) {
+    parse_triangle(r, nr_vertices, nr_uvs, nr_uk2, nr_uk4, material) {
         const vert_index = [
             r.readU32(),
             r.readU32(),
@@ -175,8 +178,10 @@ export class Pol {
         for (let i = 0; i < 3; i++) {
             normals.push(r.readVec3());
         }
-        const unknown = r.readU32(); // sub-material index?
-        return { vert_index, uv_index, unknowns, normals, unknown };
+        const material_index = r.readU32();
+        // if (material && material.children.length > 0 && material_index >= material.children.length)
+        //    console.log([material_index, material.children.length]);
+        return { vert_index, uv_index, unknowns, normals, material_index };
     }
     parse_bone(r) {
         const name = r.readStrZ();
