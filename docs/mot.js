@@ -17,7 +17,7 @@ export class Mot {
             const parent = r.readU32();
             const frames = [];
             for (let j = 0; j < nr_frames; j++) {
-                const pos = r.readVec3();
+                const pos = r.readPosition();
                 const rotq = r.readQuaternion();
                 const unknown = r.readQuaternion();
                 frames.push({ pos, rotq, unknown });

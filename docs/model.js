@@ -74,6 +74,7 @@ export class Model extends ResourceManager {
             bones.push(bone);
             const pos = toVector3(b.pos);
             const rotq = new THREE.Quaternion(b.rotq.x, b.rotq.y, b.rotq.z, b.rotq.w);
+            rotq.normalize();
             pos.applyQuaternion(rotq); // ?
             const inverse = new THREE.Matrix4();
             inverse.compose(pos, rotq, new THREE.Vector3(1, 1, 1));

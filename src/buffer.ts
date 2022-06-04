@@ -1,5 +1,7 @@
 import {Vec3, Vec4} from './types.js';
 
+const METERS_PER_INCH = 0.0254;
+
 export function readFileAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
     return new Promise((resolve, reject) => {
         let reader = new FileReader();
@@ -82,7 +84,15 @@ export class BufferReader {
         return String.fromCharCode.apply(null, bytes);
     }
 
-    readVec3(): Vec3 {
+    readPosition(): Vec3 {
+        return {
+            x: this.readF32() * METERS_PER_INCH,
+            y: this.readF32() * METERS_PER_INCH,
+            z: -this.readF32() * METERS_PER_INCH
+        };
+    }
+
+    readDirection(): Vec3 {
         return {
             x: this.readF32(),
             y: this.readF32(),

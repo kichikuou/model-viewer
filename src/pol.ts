@@ -157,9 +157,7 @@ export class Pol {
     }
 
     parse_vertex(r: BufferReader): Vertex {
-        const x = r.readF32();
-        const y = r.readF32();
-        const z = -r.readF32();
+        const pos = r.readPosition();
         const nr_weights = this.version === 1 ? r.readU32() : r.readU16();
         const weights: BoneWeight[] = [];
         for (let i = 0; i < nr_weights; i++) {
@@ -168,7 +166,7 @@ export class Pol {
             weights.push({bone, weight});
         }
         weights.sort((a, b) => b.weight - a.weight);
-        return {x, y, z, weights};
+        return {x: pos.x, y: pos.y, z: pos.z, weights};
     }
 
     parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_uk2: number, nr_uk4: number, material: MaterialInfo): Triangle {
@@ -199,7 +197,7 @@ export class Pol {
         }
         const normals: Vec3[] = [];
         for (let i = 0; i < 3; i++) {
-            normals.push(r.readVec3());
+            normals.push(r.readDirection());
         }
         const material_index = r.readU32();
         // if (material && material.children.length > 0 && material_index >= material.children.length)
@@ -211,7 +209,7 @@ export class Pol {
         const name = r.readStrZ();
         const id = r.readS32();
         const parent = r.readS32();
-        const pos = r.readVec3();
+        const pos = r.readPosition();
         const rotq = r.readQuaternion();
         return {name, id, parent, pos, rotq};
     }

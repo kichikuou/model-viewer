@@ -1,3 +1,4 @@
+const METERS_PER_INCH = 0.0254;
 export function readFileAsArrayBuffer(blob) {
     return new Promise((resolve, reject) => {
         let reader = new FileReader();
@@ -66,7 +67,14 @@ export class BufferReader {
         }
         return String.fromCharCode.apply(null, bytes);
     }
-    readVec3() {
+    readPosition() {
+        return {
+            x: this.readF32() * METERS_PER_INCH,
+            y: this.readF32() * METERS_PER_INCH,
+            z: -this.readF32() * METERS_PER_INCH
+        };
+    }
+    readDirection() {
         return {
             x: this.readF32(),
             y: this.readF32(),
