@@ -54,7 +54,11 @@ export class Model extends ResourceManager {
     private async createMaterial(info: MaterialInfo, loader: Loader, polDir: string): Promise<THREE.Material | THREE.Material[]> {
         const create = async (info: MaterialInfo) => {
             const textureInfo = info.textures;
-            const fname = textureInfo.get(TextureType.ColorMap)!
+            const fname = textureInfo.get(TextureType.ColorMap);
+            if (!fname) {
+                console.log(`${info.name} has no color map.`);
+                return this.track(new THREE.MeshBasicMaterial());
+            }
             const image = await loader.loadImage(polDir + fname);
             const texture = this.track(image.texture);
             texture.wrapS = THREE.RepeatWrapping;

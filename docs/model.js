@@ -45,6 +45,10 @@ export class Model extends ResourceManager {
         const create = async (info) => {
             const textureInfo = info.textures;
             const fname = textureInfo.get(TextureType.ColorMap);
+            if (!fname) {
+                console.log(`${info.name} has no color map.`);
+                return this.track(new THREE.MeshBasicMaterial());
+            }
             const image = await loader.loadImage(polDir + fname);
             const texture = this.track(image.texture);
             texture.wrapS = THREE.RepeatWrapping;
