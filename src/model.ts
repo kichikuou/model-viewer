@@ -75,6 +75,16 @@ export class Model extends ResourceManager {
                 params.normalMap = normalMap;
             }
 
+            // Light map
+            const lightMapName = textureInfo.get(TextureType.LightMap);
+            if (lightMapName) {
+                const lightImage = await loader.loadImage(polDir + lightMapName);
+                const lightMap = this.track(lightImage.texture);
+                lightMap.wrapS = lightMap.wrapT = THREE.RepeatWrapping;
+                params.lightMap = lightMap;
+                params.lightMapIntensity = 0.5;
+            }
+
             const material = this.track(new THREE.MeshPhongMaterial(params));
             if (diffuseImage.hasAlpha) {
                 material.transparent = true;
@@ -148,6 +158,7 @@ export class Model extends ResourceManager {
     private initObject(object: Object, material: THREE.Material | THREE.Material[], skeleton: THREE.Skeleton | null): THREE.Mesh {
         const positions: number[] = [];
         const uvs: number[] = [];
+        const light_uvs: number[] = [];
         const normals: number[] = [];
         const skinIndices: number[] = [];
         const skinWeights: number[] = [];
@@ -158,6 +169,10 @@ export class Model extends ResourceManager {
                 positions.push(pos.x, pos.y, pos.z);
                 const uv = object.uvs[triangle.uv_index[i]];
                 uvs.push(uv.u, uv.v);
+                if (object.light_uvs) {
+                    const light_uv = object.light_uvs[triangle.light_uv_index[i]];
+                    light_uvs.push(light_uv.u, light_uv.v);
+                }
                 normals.push(triangle.normals[i].x, triangle.normals[i].y, triangle.normals[i].z);
                 if (skeleton) {
                     for (let i = 0; i < 4; i++) {
@@ -176,6 +191,9 @@ export class Model extends ResourceManager {
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
         geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        if (object.light_uvs) {
+            geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(light_uvs, 2));
+        }
         if (groups) {
             console.log(object.name, groups, material);
             for (const g of groups) {

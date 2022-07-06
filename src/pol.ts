@@ -6,7 +6,7 @@ export const TextureType = {
     SpecularMaskMap: 4,
     GlareMap: 5,
     AlphaMap: 6,
-    sdMap: 7,  // What's this?
+    LightMap: 7,
     NormalMap: 8,
     HeightMap: 11,
 } as const;
@@ -18,13 +18,20 @@ export type Object = {
     material: number,
     vertices: Vertex[],
     uvs: Vec2[],
-    uk2: number[],
+    light_uvs?: Vec2[],
     uk3: (Vec3 | number)[],
     triangles: Triangle[],
     uk4: number[]
 }
 export type Vertex = {x: number, y: number, z: number, weights: BoneWeight[]}
-export type Triangle = {vert_index: number[], uv_index: number[], unknowns: number[], normals: Vec3[], material_index: number};
+export type Triangle = {
+    vert_index: number[],
+    uv_index: number[],
+    light_uv_index: number[],
+    unknowns: number[],
+    normals: Vec3[],
+    material_index: number
+};
 export type Bone = {name: string, id: number, parent: number, pos: Vec3, rotq: Vec4}
 type BoneWeight = {bone: number, weight: number}
 
@@ -115,10 +122,15 @@ export class Pol {
             const v = r.readF32();
             uvs.push({u, v: -v});
         }
-        const nr_uk2 = r.readU32();
-        const uk2: number[] = [];
-        for (let i = 0; i < nr_uk2; i++) {
-            uk2.push(r.readF64());
+        const nr_light_uvs = r.readU32();
+        let light_uvs: Vec2[] | undefined;
+        if (nr_light_uvs > 0) {
+            light_uvs = [];
+            for (let i = 0; i < nr_light_uvs; i++) {
+                const u = r.readF32();
+                const v = r.readF32();
+                light_uvs.push({u, v: -v});
+            }
         }
         const nr_uk3 = r.readU32();
         const uk3: (Vec3 | number)[] = [];
@@ -143,7 +155,7 @@ export class Pol {
         const nr_triangles = r.readU32();
         const triangles: Triangle[] = [];
         for (let i = 0; i < nr_triangles; i++) {
-            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_uk2, nr_uk4, materials[material]));
+            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_light_uvs, nr_uk4, materials[material]));
         }
         if (this.version === 1) {
             if (r.readU32() !== 1) {
@@ -153,7 +165,7 @@ export class Pol {
                 throw new Error('unexpected object footer');
             }
         }
-        return {name, material, vertices, uvs, uk2, uk3, triangles, uk4};
+        return {name, material, vertices, uvs, light_uvs, uk3, triangles, uk4};
     }
 
     parse_vertex(r: BufferReader): Vertex {
@@ -169,7 +181,7 @@ export class Pol {
         return {x: pos.x, y: pos.y, z: pos.z, weights};
     }
 
-    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_uk2: number, nr_uk4: number, material: MaterialInfo): Triangle {
+    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_light_uvs: number, nr_uk4: number, material: MaterialInfo): Triangle {
         const vert_index = [
             r.readU32(),
             r.readU32(),
@@ -188,9 +200,21 @@ export class Pol {
                 throw new Error(`texture index out of range ${uv_index[i]} / ${nr_uvs}`);
             }
         }
+        let light_uv_index: number[] = [];
+        if (nr_light_uvs > 0) {
+            light_uv_index = [
+                r.readU32() - nr_uvs,
+                r.readU32() - nr_uvs,
+                r.readU32() - nr_uvs,
+            ];
+            for (let i = 0; i < 3; i++) {
+                if (light_uv_index[i] < 0 || light_uv_index[i] >= nr_light_uvs) {
+                    throw new Error(`light uv index out of range ${light_uv_index[i]} / ${nr_light_uvs}`);
+                }
+            }
+        }
         const unknowns = [];
         let n = 3;
-        if (nr_uk2) n += 3;
         if (nr_uk4) n += 3;
         for (let i = 0; i < n; i++) {
             unknowns.push(r.readU32());
@@ -202,7 +226,7 @@ export class Pol {
         const material_index = r.readU32();
         // if (material && material.children.length > 0 && material_index >= material.children.length)
         //    console.log([material_index, material.children.length]);
-        return {vert_index, uv_index, unknowns, normals, material_index};
+        return {vert_index, uv_index, light_uv_index, unknowns, normals, material_index};
     }
 
     parse_bone(r: BufferReader): Bone {
