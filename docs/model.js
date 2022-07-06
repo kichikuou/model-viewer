@@ -44,21 +44,30 @@ export class Model extends ResourceManager {
     async createMaterial(info, loader, polDir) {
         const create = async (info) => {
             const textureInfo = info.textures;
-            const fname = textureInfo.get(TextureType.ColorMap);
-            if (!fname) {
-                console.log(`${info.name} has no color map.`);
+            // Diffuse map
+            const diffuseMapName = textureInfo.get(TextureType.ColorMap);
+            if (!diffuseMapName) {
+                console.log(`${info.name} has no diffuse map.`);
                 return this.track(new THREE.MeshBasicMaterial());
             }
-            const image = await loader.loadImage(polDir + fname);
-            const texture = this.track(image.texture);
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            // FIXME: Apply other textures
-            const material = this.track(new THREE.MeshPhongMaterial({ map: texture }));
-            if (image.hasAlpha) {
+            const diffuseImage = await loader.loadImage(polDir + diffuseMapName);
+            const diffuseMap = this.track(diffuseImage.texture);
+            diffuseMap.wrapS = diffuseMap.wrapT = THREE.RepeatWrapping;
+            const params = { map: diffuseMap };
+            // Normal map
+            const normalMapName = textureInfo.get(TextureType.NormalMap);
+            if (normalMapName) {
+                const normalImage = await loader.loadImage(polDir + normalMapName);
+                const normalMap = this.track(normalImage.texture);
+                normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+                params.normalMap = normalMap;
+            }
+            const material = this.track(new THREE.MeshPhongMaterial(params));
+            if (diffuseImage.hasAlpha) {
                 material.transparent = true;
                 material.alphaTest = 0.1;
             }
+            material.normalScale.y *= -1;
             return material;
         };
         if (info.textures.size > 0) {
