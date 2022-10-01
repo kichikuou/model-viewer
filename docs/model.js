@@ -71,8 +71,19 @@ export class Model extends ResourceManager {
                 params.lightMap = lightMap;
                 params.lightMapIntensity = 0.5;
             }
+            // Alpha map
+            const alphaMapName = textureInfo.get(TextureType.AlphaMap);
+            if (alphaMapName) {
+                const alphaImage = await loader.loadImage(polDir + alphaMapName);
+                const alphaMap = this.track(alphaImage.texture);
+                alphaMap.wrapS = alphaMap.wrapT = THREE.RepeatWrapping;
+                params.alphaMap = alphaMap;
+            }
             const material = this.track(new THREE.MeshPhongMaterial(params));
-            if (diffuseImage.hasAlpha) {
+            if (alphaMapName) {
+                material.transparent = true;
+            }
+            else if (diffuseImage.hasAlpha) {
                 material.transparent = true;
                 material.alphaTest = 0.1;
             }
