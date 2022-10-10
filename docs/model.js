@@ -24,6 +24,7 @@ export class Model extends ResourceManager {
         super(...arguments);
         this.model = new THREE.Group();
         this.boneMap = new Map();
+        this.boneNameMap = new Map();
         this.mot = null;
     }
     async load(loader, polName) {
@@ -104,6 +105,13 @@ export class Model extends ResourceManager {
         for (const b of polBones) {
             const bone = new THREE.Bone();
             this.boneMap.set(b.id, { bone, info: b, skinIndex: bones.length });
+            if (this.boneNameMap.has(b.name)) {
+                console.log('Non-unique bone name: ' + b.name);
+                this.boneNameMap.set(b.name, 'NONUNIQUE');
+            }
+            else {
+                this.boneNameMap.set(b.name, b.id);
+            }
             bones.push(bone);
             const pos = toVector3(b.pos);
             const rotq = new THREE.Quaternion(b.rotq.x, b.rotq.y, b.rotq.z, b.rotq.w);
@@ -220,10 +228,19 @@ export class Model extends ResourceManager {
         this.mot = null;
     }
     async applyMotion(frameCount) {
+        var _a;
         if (!this.mot)
             return;
         for (const bm of this.mot.bones) {
-            const bone = this.boneMap.get(bm.id).bone;
+            // Prefer match by name, as some MOT have wrong bm.id (e.g. maidsan_ahoge_*.MOT).
+            // On the other hand, match by name does not work for some other POL
+            // (e.g. masokan.POL) that have non-unique bone names.
+            const boneId = this.boneNameMap.get(bm.name);
+            const bone = (_a = this.boneMap.get(typeof (boneId) === 'number' ? boneId : bm.id)) === null || _a === void 0 ? void 0 : _a.bone;
+            if (!bone) {
+                console.log(`No bone ${bm.name}`);
+                continue;
+            }
             const i = frameCount % (bm.frames.length - 1) + 1; // frames[0] is a T-pose
             const frame = bm.frames[i];
             bone.position.set(frame.pos.x, frame.pos.y, frame.pos.z);
