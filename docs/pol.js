@@ -11,7 +11,7 @@ export const TextureType = {
 export class Pol {
     constructor(buf) {
         this.materials = [];
-        this.objects = [];
+        this.meshes = [];
         this.bones = [];
         const r = new BufferReader(buf);
         if (r.readFourCC() !== "POL\0") {
@@ -25,9 +25,9 @@ export class Pol {
         for (let i = 0; i < nr_materials; i++) {
             this.materials.push(this.parse_material(r, true));
         }
-        const nr_objects = r.readU32();
-        for (let i = 0; i < nr_objects; i++) {
-            this.objects.push(this.parse_object(r, this.materials));
+        const nr_meshes = r.readU32();
+        for (let i = 0; i < nr_meshes; i++) {
+            this.meshes.push(this.parse_mesh(r, this.materials));
         }
         const nr_bones = r.readU32();
         for (let i = 0; i < nr_bones; i++) {
@@ -67,12 +67,12 @@ export class Pol {
         }
         return { name, textures, children };
     }
-    parse_object(r, materials) {
+    parse_mesh(r, materials) {
         const type = r.readS32();
         switch (type) {
             case 0: break;
             case -1: return null;
-            default: throw new Error('unknown object type ' + type);
+            default: throw new Error('unknown mesh type ' + type);
         }
         const name = r.readStrZ();
         const material = r.readS32();
@@ -129,10 +129,10 @@ export class Pol {
         }
         if (this.version === 1) {
             if (r.readU32() !== 1) {
-                throw new Error('unexpected object footer');
+                throw new Error('unexpected mesh footer');
             }
             if (r.readU32() !== 0) {
-                throw new Error('unexpected object footer');
+                throw new Error('unexpected mesh footer');
             }
         }
         return { name, material, vertices, uvs, light_uvs, uk3, triangles, uk4 };

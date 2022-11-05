@@ -13,7 +13,7 @@ export const TextureType = {
 
 export type MaterialInfo = {name: string, textures: TextureInfo, children: MaterialInfo[]}
 export type TextureInfo = Map<number, string>;
-export type Object = {
+export type Mesh = {
     name: string,
     material: number,
     vertices: Vertex[],
@@ -38,7 +38,7 @@ type BoneWeight = {bone: number, weight: number}
 export class Pol {
     readonly version: number;
     readonly materials: MaterialInfo[] = [];
-    readonly objects: (Object | null)[] = [];
+    readonly meshes: (Mesh | null)[] = [];
     readonly bones: Bone[] = [];
 
     constructor(buf: ArrayBuffer) {
@@ -54,9 +54,9 @@ export class Pol {
         for (let i = 0; i < nr_materials; i++) {
             this.materials.push(this.parse_material(r, true));
         }
-        const nr_objects = r.readU32();
-        for (let i = 0; i < nr_objects; i++) {
-            this.objects.push(this.parse_object(r, this.materials));
+        const nr_meshes = r.readU32();
+        for (let i = 0; i < nr_meshes; i++) {
+            this.meshes.push(this.parse_mesh(r, this.materials));
         }
         const nr_bones = r.readU32();
         for (let i = 0; i < nr_bones; i++) {
@@ -98,12 +98,12 @@ export class Pol {
         return {name, textures, children};
     }
 
-    parse_object(r: BufferReader, materials: MaterialInfo[]): Object | null {
+    parse_mesh(r: BufferReader, materials: MaterialInfo[]): Mesh | null {
         const type = r.readS32();
         switch (type) {
         case 0: break;
         case -1: return null;
-        default: throw new Error('unknown object type ' + type);
+        default: throw new Error('unknown mesh type ' + type);
         }
         const name = r.readStrZ();
         const material = r.readS32();
@@ -159,10 +159,10 @@ export class Pol {
         }
         if (this.version === 1) {
             if (r.readU32() !== 1) {
-                throw new Error('unexpected object footer');
+                throw new Error('unexpected mesh footer');
             }
             if (r.readU32() !== 0) {
-                throw new Error('unexpected object footer');
+                throw new Error('unexpected mesh footer');
             }
         }
         return {name, material, vertices, uvs, light_uvs, uk3, triangles, uk4};

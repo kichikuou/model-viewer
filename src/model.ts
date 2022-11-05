@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import {Loader} from './loader.js';
-import {Pol, TextureType, MaterialInfo, Object, Bone, Triangle} from './pol.js'
+import {Pol, TextureType, MaterialInfo, Mesh, Bone, Triangle} from './pol.js'
 import {Mot} from './mot.js';
 import {Vec3} from './types.js';
 
@@ -46,9 +46,9 @@ export class Model extends ResourceManager {
 
         const skeleton = this.initBones(pol.bones);
 
-        for (const object of pol.objects) {
-            if (!object) continue;
-            this.model.add(this.initObject(object, materials[object.material], skeleton));
+        for (const mesh of pol.meshes) {
+            if (!mesh) continue;
+            this.model.add(this.initMesh(mesh, materials[mesh.material], skeleton));
         }
     }
 
@@ -173,22 +173,22 @@ export class Model extends ResourceManager {
         return result;
     }
 
-    private initObject(object: Object, material: THREE.Material | THREE.Material[], skeleton: THREE.Skeleton | null): THREE.Mesh {
+    private initMesh(mesh: Mesh, material: THREE.Material | THREE.Material[], skeleton: THREE.Skeleton | null): THREE.Mesh {
         const positions: number[] = [];
         const uvs: number[] = [];
         const light_uvs: number[] = [];
         const normals: number[] = [];
         const skinIndices: number[] = [];
         const skinWeights: number[] = [];
-        const groups = this.initGroups(material, object.triangles);
-        for (const triangle of object.triangles) {
+        const groups = this.initGroups(material, mesh.triangles);
+        for (const triangle of mesh.triangles) {
             for (let i = 0; i < 3; i++) {
-                const pos = object.vertices[triangle.vert_index[i]];
+                const pos = mesh.vertices[triangle.vert_index[i]];
                 positions.push(pos.x, pos.y, pos.z);
-                const uv = object.uvs[triangle.uv_index[i]];
+                const uv = mesh.uvs[triangle.uv_index[i]];
                 uvs.push(uv.u, uv.v);
-                if (object.light_uvs) {
-                    const light_uv = object.light_uvs[triangle.light_uv_index[i]];
+                if (mesh.light_uvs) {
+                    const light_uv = mesh.light_uvs[triangle.light_uv_index[i]];
                     light_uvs.push(light_uv.u, light_uv.v);
                 }
                 normals.push(triangle.normals[i].x, triangle.normals[i].y, triangle.normals[i].z);
@@ -209,11 +209,11 @@ export class Model extends ResourceManager {
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
         geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-        if (object.light_uvs) {
+        if (mesh.light_uvs) {
             geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(light_uvs, 2));
         }
         if (groups) {
-            console.log(object.name, groups, material);
+            console.log(mesh.name, groups, material);
             for (const g of groups) {
                 geometry.addGroup(g.start, g.count, g.materialIndex);
             }
@@ -223,15 +223,15 @@ export class Model extends ResourceManager {
         }
         geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
         geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeights, 4));
-        const mesh = new THREE.SkinnedMesh(geometry, material);
-        mesh.normalizeSkinWeights();
+        const result = new THREE.SkinnedMesh(geometry, material);
+        result.normalizeSkinWeights();
         for (const b of this.boneMap.values()) {
             if (!b.bone.parent)
-                mesh.add(b.bone);
+            result.add(b.bone);
         }
-        mesh.bind(skeleton);
-        // this.model.add(new THREE.SkeletonHelper(mesh));
-        return mesh;
+        result.bind(skeleton);
+        // this.model.add(new THREE.SkeletonHelper(result));
+        return result;
     }
 
     async loadMotion(loader: Loader, fname: string) {
