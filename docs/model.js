@@ -32,8 +32,10 @@ export class Model extends ResourceManager {
         const polData = await loader.load(polName);
         const pol = new Pol(polData);
         const materials = [];
-        for (const material of pol.materials) {
-            materials.push(await this.createMaterial(material, loader, polDir));
+        for (let i = 0; i < pol.materials.length; i++) {
+            const material = pol.materials[i];
+            const isEnv = pol.meshes.some((m) => m && m.material === i && m.name.indexOf('(env)') >= 0);
+            materials.push(await this.createMaterial(material, isEnv, loader, polDir));
         }
         const skeleton = this.initBones(pol.bones);
         for (const mesh of pol.meshes) {
@@ -42,7 +44,7 @@ export class Model extends ResourceManager {
             this.model.add(this.initMesh(mesh, materials[mesh.material], skeleton));
         }
     }
-    async createMaterial(info, loader, polDir) {
+    async createMaterial(info, isEnv, loader, polDir) {
         const create = async (info) => {
             const textureInfo = info.textures;
             // Diffuse map
@@ -54,7 +56,13 @@ export class Model extends ResourceManager {
             const diffuseImage = await loader.loadImage(polDir + diffuseMapName);
             const diffuseMap = this.track(diffuseImage.texture);
             diffuseMap.wrapS = diffuseMap.wrapT = THREE.RepeatWrapping;
-            const params = { map: diffuseMap };
+            const params = {};
+            if (isEnv) {
+                params.matcap = diffuseMap;
+            }
+            else {
+                params.map = diffuseMap;
+            }
             // Normal map
             const normalMapName = textureInfo.get(TextureType.NormalMap);
             if (normalMapName) {
@@ -80,7 +88,7 @@ export class Model extends ResourceManager {
                 alphaMap.wrapS = alphaMap.wrapT = THREE.RepeatWrapping;
                 params.alphaMap = alphaMap;
             }
-            const material = this.track(new THREE.MeshPhongMaterial(params));
+            const material = this.track(isEnv ? new THREE.MeshMatcapMaterial(params) : new THREE.MeshPhongMaterial(params));
             if (alphaMapName) {
                 material.transparent = true;
             }
