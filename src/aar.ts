@@ -58,16 +58,16 @@ export class Aar {
 
     constructor(private blob: Blob, private lib: LibModule, private version: number, private entries: Entry[]) {
         for (const e of entries) {
-            this.map.set(e.name, e);
+            this.map.set(e.name.toLowerCase(), e);
         }
     }
 
     filenames() {
-        return this.map.keys();
+        return Array.from(this.map.values(), (entry, _) => entry.name);
     }
 
     load(name: string): Promise<ArrayBuffer> {
-        const entry = this.map.get(name);
+        const entry = this.map.get(name.toLowerCase());
         if (!entry) {
             throw new Error(name + ' not found');
         }

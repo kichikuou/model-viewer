@@ -200,10 +200,10 @@ export class Model extends ResourceManager {
                 }
                 normals.push(triangle.normals[i].x, triangle.normals[i].y, triangle.normals[i].z);
                 if (skeleton) {
-                    for (let i = 0; i < 4; i++) {
-                        if (i < pos.weights.length) {
-                            skinIndices.push(this.boneMap.get(pos.weights[i].bone)!.skinIndex);
-                            skinWeights.push(pos.weights[i].weight);
+                    for (let j = 0; j < 4; j++) {
+                        if (j < pos.weights.length) {
+                            skinIndices.push(this.boneMap.get(pos.weights[j].bone)!.skinIndex);
+                            skinWeights.push(pos.weights[j].weight);
                         } else {
                             skinIndices.push(0);
                             skinWeights.push(0);

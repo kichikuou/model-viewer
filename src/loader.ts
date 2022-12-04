@@ -6,7 +6,7 @@ import {LibModule} from './lib.js';
 type Image = {texture: THREE.Texture, hasAlpha: boolean};
 
 export interface Loader {
-    filenames(): IterableIterator<string>;
+    filenames(): string[];
     load(fname: string): Promise<ArrayBuffer>;
     loadImage(fname: string): Promise<Image>;
 }
@@ -15,13 +15,12 @@ class FilesLoader implements Loader {
     private map: Map<string, File> = new Map();
     constructor(private files: FileList) {
         for (const f of this.files) {
-            this.map.set(f.name, f);
+            this.map.set(f.name.toLowerCase(), f);
         }
-        this.map.keys
     }
 
     filenames() {
-        return this.map.keys();
+        return Array.from(this.map.values(), (f, _) => f.name);
     }
 
     load(fname: string): Promise<ArrayBuffer> {
@@ -36,7 +35,7 @@ class FilesLoader implements Loader {
 
     private getBlob(fname: string): Blob {
         console.log('loading ' + fname);
-        const f = this.map.get(fname);
+        const f = this.map.get(fname.toLowerCase());
         if (!f) {
             throw new Error(fname + ': not found');
         }

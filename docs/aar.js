@@ -12,7 +12,7 @@ export class Aar {
         this.entries = entries;
         this.map = new Map();
         for (const e of entries) {
-            this.map.set(e.name, e);
+            this.map.set(e.name.toLowerCase(), e);
         }
     }
     static async create(file, lib) {
@@ -42,10 +42,10 @@ export class Aar {
         return new Aar(file, lib, version, entries);
     }
     filenames() {
-        return this.map.keys();
+        return Array.from(this.map.values(), (entry, _) => entry.name);
     }
     load(name) {
-        const entry = this.map.get(name);
+        const entry = this.map.get(name.toLowerCase());
         if (!entry) {
             throw new Error(name + ' not found');
         }

@@ -6,12 +6,11 @@ class FilesLoader {
         this.files = files;
         this.map = new Map();
         for (const f of this.files) {
-            this.map.set(f.name, f);
+            this.map.set(f.name.toLowerCase(), f);
         }
-        this.map.keys;
     }
     filenames() {
-        return this.map.keys();
+        return Array.from(this.map.values(), (f, _) => f.name);
     }
     load(fname) {
         return readFileAsArrayBuffer(this.getBlob(fname));
@@ -23,7 +22,7 @@ class FilesLoader {
     }
     getBlob(fname) {
         console.log('loading ' + fname);
-        const f = this.map.get(fname);
+        const f = this.map.get(fname.toLowerCase());
         if (!f) {
             throw new Error(fname + ': not found');
         }
