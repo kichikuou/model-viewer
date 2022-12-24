@@ -223,9 +223,10 @@ export class Pol {
         for (let i = 0; i < 3; i++) {
             normals.push(r.readDirection());
         }
-        const material_index = r.readU32();
-        // if (material && material.children.length > 0 && material_index >= material.children.length)
-        //    console.log([material_index, material.children.length]);
+        let material_index = r.readU32();
+        if (material && material.children.length > 0 && material_index >= material.children.length) {
+            material_index = 0;
+        }
         return {vert_index, uv_index, light_uv_index, unknowns, normals, material_index};
     }
 
