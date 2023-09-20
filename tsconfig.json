@@ -4,6 +4,7 @@
         "outDir": "docs",
         "module": "ESNext",
         "strict": true,
+        "noEmit": true,
         "paths": {
             "https://unpkg.com/gl-matrix@3.3.0/esm/index.js": [
                 "./src/gl-matrix.d.ts"

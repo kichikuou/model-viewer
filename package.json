@@ -5,13 +5,12 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w"
+    "build": "bun build src/index.ts --outdir docs --external three",
+    "watch": "bun build src/index.ts --outdir docs --external three --watch"
   },
   "author": "kichikuou <KichikuouChrome@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@types/three": "^0.139.0",
-    "typescript": "^5.2.2"
+    "@types/three": "^0.139.0"
   }
 }
