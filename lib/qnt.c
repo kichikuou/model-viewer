@@ -77,7 +77,9 @@ static bool qnt_extract_header(const uint8_t *b, struct qnt_header *qnt) {
 	qnt->pixel_size  = getdw(b, ofs); ofs += 4;
 	qnt->alpha_size  = getdw(b, ofs); ofs += 4;
 	if (qnt->bpp != 24) {
+#ifndef NDEBUG
 		fprintf(stderr, "Unsupported bits-per-pixel: %d\n", qnt->bpp);
+#endif
 		return false;
 	}
 	return true;
@@ -162,19 +164,25 @@ EMSCRIPTEN_KEEPALIVE
 uint8_t *qnt_extract(const uint8_t *buf) {
 	struct qnt_header qnt;
 	if (!qnt_extract_header(buf, &qnt)) {
+#ifndef NDEBUG
 		fprintf(stderr, "not a QNT file\n");
+#endif
 		return NULL;
 	}
 
 	uint8_t *pixels = extract_pixels(&qnt, buf + qnt.header_size);
 	if (!pixels) {
+#ifndef NDEBUG
 		fprintf(stderr, "broken image\n");
+#endif
 		return NULL;
 	}
 	if (qnt.alpha_size) {
 		uint8_t *alpha = extract_alpha(&qnt, buf + qnt.header_size + qnt.pixel_size);
 		if (!alpha) {
+#ifndef NDEBUG
 			fprintf(stderr, "broken alpha image\n");
+#endif
 			free(pixels);
 			return NULL;
 		}

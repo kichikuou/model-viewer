@@ -95,18 +95,18 @@ export class Aar {
         if (inSize + 16 !== entry.size) {
             throw new Error('bad ZLB size');
         }
-        const inPtr = this.lib._malloc(inSize);
+        const inPtr = this.lib.malloc(inSize);
         if (!inPtr) {
             throw new Error('out of memroy');
         }
-        this.lib.HEAPU8.set(new Uint8Array(buf, 16), inPtr);
-        const outPtr = this.lib._decompress(inPtr, inSize, outSize);
-        this.lib._free(inPtr);
+        this.lib.memset(inPtr, new Uint8Array(buf, 16));
+        const outPtr = this.lib.decompress(inPtr, inSize, outSize);
+        this.lib.free(inPtr);
         if (!outPtr) {
             throw new Error('decompress failed');
         }
-        const rawBuf = this.lib.HEAPU8.slice(outPtr, outPtr + outSize).buffer;
-        this.lib._free(outPtr);
+        const rawBuf = this.lib.memget(outPtr, outSize).buffer;
+        this.lib.free(outPtr);
         return rawBuf;
     }
 

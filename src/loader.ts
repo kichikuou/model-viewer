@@ -62,10 +62,10 @@ class AarLoader implements Loader {
 }
 
 function decodeQnt(lib: LibModule, buf: Uint8Array): Image {
-    const ptr = lib._malloc(buf.byteLength);
-    lib.HEAPU8.set(buf, ptr);
-    const decoded = lib._qnt_extract(ptr);
-    lib._free(ptr);
+    const ptr = lib.malloc(buf.byteLength);
+    lib.memset(ptr, buf);
+    const decoded = lib.qnt_extract(ptr);
+    lib.free(ptr);
     if (decoded === 0)
         throw new Error('qnt_extract failed');
     const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -73,8 +73,8 @@ function decodeQnt(lib: LibModule, buf: Uint8Array): Image {
     const width = dv.getUint32(16 + ofs, true);
     const height = dv.getUint32(20 + ofs, true);
     const hasAlpha = dv.getUint32(36 + ofs, true) !== 0;
-    const pixels: Uint8Array = lib.HEAPU8.slice(decoded, decoded + width * height * 4);
-    lib._free(decoded);
+    const pixels: Uint8Array = lib.memget(decoded, width * height * 4);
+    lib.free(decoded);
     const texture = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
     texture.flipY = true;
     texture.magFilter = THREE.LinearFilter;

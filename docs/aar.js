@@ -5,16 +5,6 @@ const EntryType = {
     Symlink: -1,
 };
 export class Aar {
-    constructor(blob, lib, version, entries) {
-        this.blob = blob;
-        this.lib = lib;
-        this.version = version;
-        this.entries = entries;
-        this.map = new Map();
-        for (const e of entries) {
-            this.map.set(e.name.toLowerCase(), e);
-        }
-    }
     static async create(file, lib) {
         const headerBuf = await readFileAsArrayBuffer(file.slice(0, 16));
         const hr = new BufferReader(headerBuf);
@@ -40,6 +30,16 @@ export class Aar {
             entries.push({ offset, size, type, name, symlink_target });
         }
         return new Aar(file, lib, version, entries);
+    }
+    constructor(blob, lib, version, entries) {
+        this.blob = blob;
+        this.lib = lib;
+        this.version = version;
+        this.entries = entries;
+        this.map = new Map();
+        for (const e of entries) {
+            this.map.set(e.name.toLowerCase(), e);
+        }
     }
     filenames() {
         return Array.from(this.map.values(), (entry, _) => entry.name);
@@ -72,18 +72,18 @@ export class Aar {
         if (inSize + 16 !== entry.size) {
             throw new Error('bad ZLB size');
         }
-        const inPtr = this.lib._malloc(inSize);
+        const inPtr = this.lib.malloc(inSize);
         if (!inPtr) {
             throw new Error('out of memroy');
         }
-        this.lib.HEAPU8.set(new Uint8Array(buf, 16), inPtr);
-        const outPtr = this.lib._decompress(inPtr, inSize, outSize);
-        this.lib._free(inPtr);
+        this.lib.memset(inPtr, new Uint8Array(buf, 16));
+        const outPtr = this.lib.decompress(inPtr, inSize, outSize);
+        this.lib.free(inPtr);
         if (!outPtr) {
             throw new Error('decompress failed');
         }
-        const rawBuf = this.lib.HEAPU8.slice(outPtr, outPtr + outSize).buffer;
-        this.lib._free(outPtr);
+        const rawBuf = this.lib.memget(outPtr, outSize).buffer;
+        this.lib.free(outPtr);
         return rawBuf;
     }
     readEntry(entry) {
