@@ -5,12 +5,13 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --external three",
-    "watch": "bun build src/index.ts --outdir dist --external three --watch"
+    "build": "bun build src/index.ts --outdir dist --minify --sourcemap=linked",
+    "watch": "bun build src/index.ts --outdir dist --minify --sourcemap=linked --watch"
   },
   "author": "kichikuou <KichikuouChrome@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@types/three": "^0.139.0"
+    "@types/three": "^0.139.0",
+    "three": "^0.139.0"
   }
 }
