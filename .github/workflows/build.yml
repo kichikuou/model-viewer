@@ -1,0 +1,53 @@
+name: Build
+on: push
+
+env:
+  EM_VERSION: 3.1.67
+  EM_CACHE_FOLDER: 'emsdk-cache'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    - uses: actions/checkout@v4
+    - uses: oven-sh/setup-bun@v2
+
+    - name: Setup cache
+      id: cache-system-libraries
+      uses: actions/cache@v4
+      with:
+        path: ${{env.EM_CACHE_FOLDER}}
+        key: ${{env.EM_VERSION}}-${{ runner.os }}
+
+    - name: Setup Emscripten toolchain
+      uses: mymindstorm/setup-emsdk@v14
+      with:
+        version: ${{env.EM_VERSION}}
+        actions-cache-folder: ${{env.EM_CACHE_FOLDER}}
+
+    - name: Build
+      run: |
+        make -C lib
+        bun install
+        bun run build
+
+    - name: Upload artifacts for GitHub Pages
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: dist
+
+  deploy:
+    needs: build
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+        id: deployment

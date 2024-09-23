@@ -1,7 +1,6 @@
 {
     "compilerOptions": {
         "target": "ES2017",
-        "outDir": "docs",
         "module": "ESNext",
         "strict": true,
         "noEmit": true,

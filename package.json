@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "bun build src/index.ts --outdir docs --external three",
-    "watch": "bun build src/index.ts --outdir docs --external three --watch"
+    "build": "bun build src/index.ts --outdir dist --external three",
+    "watch": "bun build src/index.ts --outdir dist --external three --watch"
   },
   "author": "kichikuou <KichikuouChrome@gmail.com>",
   "license": "MIT",
