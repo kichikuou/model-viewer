@@ -95,18 +95,20 @@ export class Model extends ResourceManager {
 
             // Alpha map
             const alphaMapName = textureInfo.get(TextureType.AlphaMap);
-            if (alphaMapName) {
+            if (alphaMapName && alphaMapName !== diffuseMapName) {
                 const alphaImage = await loader.loadImage(polDir + alphaMapName);
+                if (alphaImage.hasAlpha) {
+                    console.warn(`Alpha image ${info.name} is not grayscale.`);
+                }
                 const alphaMap = this.track(alphaImage.texture);
                 alphaMap.wrapS = alphaMap.wrapT = THREE.RepeatWrapping;
                 params.alphaMap = alphaMap;
             }
 
             const material = this.track(isEnv ? new THREE.MeshMatcapMaterial(params) : new THREE.MeshPhongMaterial(params));
-            if (alphaMapName) {
+            if (params.alphaMap) {
                 material.transparent = true;
             } else if (diffuseImage.hasAlpha) {
-                material.transparent = true;
                 material.alphaTest = 0.1;
             }
             material.normalScale.y *= -1;
@@ -220,7 +222,6 @@ export class Model extends ResourceManager {
             geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(light_uvs, 2));
         }
         if (groups) {
-            console.log(mesh.name, groups, material);
             for (const g of groups) {
                 geometry.addGroup(g.start, g.count, g.materialIndex);
             }
