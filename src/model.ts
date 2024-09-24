@@ -32,6 +32,7 @@ export class Model extends ResourceManager {
     readonly model = new THREE.Group();
     readonly boneMap: Map<number, {bone: THREE.Bone, info: Bone, skinIndex: number}> = new Map();
     readonly boneNameMap: Map<string, number | 'NONUNIQUE'> = new Map();
+    public collisionMesh: THREE.Mesh | null = null;
     private mot: Mot | null = null;
 
     async load(loader: Loader, polName: string) {
@@ -50,7 +51,12 @@ export class Model extends ResourceManager {
 
         for (const mesh of pol.meshes) {
             if (!mesh) continue;
-            this.model.add(this.initMesh(mesh, materials[mesh.material], skeleton));
+            const obj = this.initMesh(mesh, materials[mesh.material], skeleton);
+            if (mesh.name === 'collision') {
+                this.collisionMesh = obj;
+            } else {
+                this.model.add(obj);
+            }
         }
     }
 

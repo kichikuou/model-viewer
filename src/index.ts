@@ -22,6 +22,7 @@ class ModelViewer {
         $('#viewer').appendChild(this.renderer.domElement);
         $('#model-select').addEventListener('change', (e) => this.onModelChange(), false);
         $('#motion-select').addEventListener('change', (e) => this.onMotionChange(), false);
+        $('#show-collision').addEventListener('change', (e) => this.onShowCollisionChange(), false);
     }
 
     async handleFiles(files: FileList) {
@@ -59,6 +60,14 @@ class ModelViewer {
         await model.load(this.loader, fname);
         this.view(model);
 
+        const showCollisionLabel = $('#show-collision-label');
+        if (model.collisionMesh) {
+            showCollisionLabel.hidden = false;
+            this.onShowCollisionChange();
+        } else {
+            showCollisionLabel.hidden = true;
+        }
+
         const select = $('#motion-select');
         while (select.firstChild) {
             select.removeChild(select.firstChild);
@@ -93,6 +102,14 @@ class ModelViewer {
         }
     }
 
+    private onShowCollisionChange() {
+        if (this.model && this.model.collisionMesh) {
+            const checked = ($('#show-collision') as HTMLInputElement).checked;
+            this.model.collisionMesh.visible = checked;
+            this.model.model.visible = !checked;
+        }
+    }
+
     private view(model: Model) {
         if (this.model) {
             this.model.dispose();
@@ -100,6 +117,9 @@ class ModelViewer {
         this.model = model;
         this.scene = new THREE.Scene();
         this.scene.add(model.model);
+        if (model.collisionMesh) {
+            this.scene.add(model.collisionMesh);
+        }
         this.light.position.set(1, 1, 1);
         this.scene.add(this.light);
         this.scene.add(new THREE.AmbientLight(0xFFFFFF, 0.5));
