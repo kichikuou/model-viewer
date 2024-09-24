@@ -76,6 +76,8 @@ export class Aar {
             return this.inflateEntry(entry);
         case EntryType.Raw:
             return this.readEntry(entry);
+        case EntryType.Symlink:
+            return this.load(entry.symlink_target!);
         default:
             throw new Error('not implemented');
         }
