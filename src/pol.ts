@@ -19,7 +19,7 @@ export type Mesh = {
     vertices: Vertex[],
     uvs: Vec2[],
     light_uvs?: Vec2[],
-    uk3: (Vec3 | number)[],
+    colors?: Vec3[],
     triangles: Triangle[],
     uk4: number[]
 }
@@ -28,6 +28,7 @@ export type Triangle = {
     vert_index: number[],
     uv_index: number[],
     light_uv_index: number[],
+    color_index: number[],
     unknowns: number[],
     normals: Vec3[],
     material_index: number
@@ -132,21 +133,31 @@ export class Pol {
                 light_uvs.push({u, v: -v});
             }
         }
-        const nr_uk3 = r.readU32();
-        const uk3: (Vec3 | number)[] = [];
+        const nr_colors = r.readU32();
+        let colors: Vec3[] | undefined;
+        if (nr_colors > 0) {
+            colors = [];
+            for (let i = 0; i < nr_colors; i++) {
+                if (this.version === 1) {
+                    const x = r.readF32();
+                    const y = r.readF32();
+                    const z = r.readF32();
+                    colors.push({x, y, z});
+                } else {
+                    const R = r.readU8();
+                    const G = r.readU8();
+                    const B = r.readU8();
+                    const A = r.readU8();
+                    if (A !== 255) {
+                        console.warn('vertex color: unexpected alpha channel');
+                    }
+                    colors.push({x: R / 255, y: G / 255, z: B / 255});
+                }
+            }
+        }
         let nr_uk4 = 0;
         const uk4: number[] = [];
-        if (this.version === 1) {
-            for (let i = 0; i < nr_uk3; i++) {
-                const x = r.readF32();
-                const y = r.readF32();
-                const z = r.readF32();
-                uk3.push({x, y, z});
-            }
-        } else {
-            for (let i = 0; i < nr_uk3; i++) {
-                uk3.push(r.readU32());
-            }
+        if (this.version >= 2) {
             nr_uk4 = r.readU32();
             for (let i = 0; i < nr_uk4; i++) {
                 uk4.push(r.readU8());
@@ -155,7 +166,7 @@ export class Pol {
         const nr_triangles = r.readU32();
         const triangles: Triangle[] = [];
         for (let i = 0; i < nr_triangles; i++) {
-            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_light_uvs, nr_uk4, materials[material]));
+            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_light_uvs, nr_colors, nr_uk4, materials[material]));
         }
         if (this.version === 1) {
             if (r.readU32() !== 1) {
@@ -165,7 +176,7 @@ export class Pol {
                 throw new Error('unexpected mesh footer');
             }
         }
-        return {name, material, vertices, uvs, light_uvs, uk3, triangles, uk4};
+        return {name, material, vertices, uvs, light_uvs, colors, triangles, uk4};
     }
 
     parse_vertex(r: BufferReader): Vertex {
@@ -181,7 +192,7 @@ export class Pol {
         return {x: pos.x, y: pos.y, z: pos.z, weights};
     }
 
-    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_light_uvs: number, nr_uk4: number, material: MaterialInfo): Triangle {
+    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_light_uvs: number, nr_colors: number, nr_uk4: number, material: MaterialInfo): Triangle {
         const vert_index = [
             r.readU32(),
             r.readU32(),
@@ -213,11 +224,19 @@ export class Pol {
                 }
             }
         }
+        const color_index = [];
+        for (let i = 0; i < 3; i++) {
+            const idx = r.readU32();
+            if (nr_colors > 0 && idx >= nr_colors) {
+                throw new Error(`color index out of range ${idx} / ${nr_colors}`);
+            }
+            color_index.push(idx);
+        }
         const unknowns = [];
-        let n = 3;
-        if (nr_uk4) n += 3;
-        for (let i = 0; i < n; i++) {
-            unknowns.push(r.readU32());
+        if (nr_uk4) {
+            for (let i = 0; i < 3; i++) {
+                unknowns.push(r.readU32());
+            }
         }
         const normals: Vec3[] = [];
         for (let i = 0; i < 3; i++) {
@@ -227,7 +246,7 @@ export class Pol {
         if (material && material.children.length > 0 && material_index >= material.children.length) {
             material_index = 0;
         }
-        return {vert_index, uv_index, light_uv_index, unknowns, normals, material_index};
+        return {vert_index, uv_index, light_uv_index, color_index, unknowns, normals, material_index};
     }
 
     parse_bone(r: BufferReader): Bone {

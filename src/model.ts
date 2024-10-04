@@ -73,7 +73,9 @@ export class Model extends ResourceManager {
             const diffuseImage = await loader.loadImage(polDir + diffuseMapName);
             const diffuseMap = this.track(diffuseImage.texture);
             diffuseMap.wrapS = diffuseMap.wrapT = THREE.RepeatWrapping;
-            const params: THREE.MeshPhongMaterialParameters & THREE.MeshMatcapMaterialParameters = {};
+            const params: THREE.MeshPhongMaterialParameters & THREE.MeshMatcapMaterialParameters = {
+                vertexColors: true
+            };
             if (isEnv) {
                 params.matcap = diffuseMap;
             } else {
@@ -192,6 +194,7 @@ export class Model extends ResourceManager {
         const positions: number[] = [];
         const uvs: number[] = [];
         const light_uvs: number[] = [];
+        const colors: number[] = [];
         const normals: number[] = [];
         const skinIndices: number[] = [];
         const skinWeights: number[] = [];
@@ -205,6 +208,12 @@ export class Model extends ResourceManager {
                 if (mesh.light_uvs) {
                     const light_uv = mesh.light_uvs[triangle.light_uv_index[i]];
                     light_uvs.push(light_uv.u, light_uv.v);
+                }
+                if (mesh.colors) {
+                    const color = mesh.colors[triangle.color_index[i]];
+                    colors.push(color.x, color.y, color.z);
+                } else {
+                    colors.push(1, 1, 1);
                 }
                 normals.push(triangle.normals[i].x, triangle.normals[i].y, triangle.normals[i].z);
                 if (skeleton) {
@@ -227,6 +236,7 @@ export class Model extends ResourceManager {
         if (mesh.light_uvs) {
             geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(light_uvs, 2));
         }
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         if (groups) {
             for (const g of groups) {
                 geometry.addGroup(g.start, g.count, g.materialIndex);
