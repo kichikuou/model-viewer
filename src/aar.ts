@@ -62,6 +62,10 @@ export class Aar {
         }
     }
 
+    exists(name: string) {
+        return this.map.has(name.toLowerCase());
+    }
+
     filenames() {
         return Array.from(this.map.values(), (entry, _) => entry.name);
     }

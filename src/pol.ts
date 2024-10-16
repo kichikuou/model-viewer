@@ -21,7 +21,13 @@ export type Mesh = {
     light_uvs?: Vec2[],
     colors?: Vec3[],
     triangles: Triangle[],
-    uk4: number[]
+    uk4: number[],
+    // Parameters in .opr file
+    additiveBlending?: boolean,
+    noEdge?: boolean,
+    edgeColor?: number[],
+    edgeSize?: number,
+    uvScroll?: Vec2,
 }
 export type Vertex = {x: number, y: number, z: number, weights: BoneWeight[]}
 export type Triangle = {
@@ -42,7 +48,7 @@ export class Pol {
     readonly meshes: (Mesh | null)[] = [];
     readonly bones: Bone[] = [];
 
-    constructor(buf: ArrayBuffer) {
+    constructor(buf: ArrayBuffer, opr?: string) {
         const r = new BufferReader(buf);
         if (r.readFourCC() !== "POL\0") {
             throw new Error('not a POL file');
@@ -65,6 +71,10 @@ export class Pol {
         }
         if (r.offset !== buf.byteLength) {
             console.log('extra data at end');
+        }
+
+        if (opr) {
+            this.loadOpr(opr);
         }
     }
 
@@ -256,5 +266,55 @@ export class Pol {
         const pos = r.readPosition();
         const rotq = r.readQuaternion();
         return {name, id, parent, pos, rotq};
+    }
+
+    loadOpr(opr: string) {
+        let currentMesh: Mesh | null = null;
+        for (const line of opr.split('\n')) {
+            const [key, value] = line.split('=').map(s => s.trim());
+            if (!key && !value) {
+                continue;
+            }
+            switch (key) {
+                case 'BlendMode':
+                    if (currentMesh) {
+                        currentMesh.additiveBlending = value === 'Add';
+                    }
+                    break;
+                case 'Edge':
+                    if (currentMesh) {
+                        currentMesh.noEdge = value === '0';
+                    }
+                    break;
+                case 'EdgeColor':
+                    if (currentMesh) {
+                        currentMesh.edgeColor = value.slice(1, -1).split(',').map(Number);
+                    }
+                    break;
+                case 'EdgeSize':
+                    if (currentMesh) {
+                        currentMesh.edgeSize = parseFloat(value);
+                    }
+                    break;
+                case 'HeightDetection':
+                    // do nothing
+                    break;
+                case 'Mesh':
+                case 'MeshPart':
+                    currentMesh = this.meshes.find(mesh => mesh?.name === value.slice(1, -1)) || null;
+                    break;
+                case 'MeshCombinable':
+                    // ???
+                    break;
+                case 'UVScroll':
+                    const [u, v] = value.slice(1, -1).split(',').map(Number);
+                    if (currentMesh) {
+                        currentMesh.uvScroll = {u, v};
+                    }
+                    break;
+                default:
+                    console.warn(`Unknown opr key: ${key}`);
+            }
+        }
     }
 }

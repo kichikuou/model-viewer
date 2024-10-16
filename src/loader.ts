@@ -6,6 +6,7 @@ import {LibModule} from './lib.js';
 type Image = {texture: THREE.Texture, hasAlpha: boolean};
 
 export interface Loader {
+    exists(fname: string): boolean;
     filenames(): string[];
     load(fname: string): Promise<ArrayBuffer>;
     loadImage(fname: string): Promise<Image>;
@@ -17,6 +18,10 @@ class FilesLoader implements Loader {
         for (const f of this.files) {
             this.map.set(f.name.toLowerCase(), f);
         }
+    }
+
+    exists(fname: string) {
+        return this.map.has(fname.toLowerCase());
     }
 
     filenames() {
@@ -45,6 +50,10 @@ class FilesLoader implements Loader {
 
 class AarLoader implements Loader {
     constructor(private aar: Aar, private lib: LibModule) {}
+
+    exists(fname: string) {
+        return this.aar.exists(fname);
+    }
 
     filenames() {
         return this.aar.filenames();

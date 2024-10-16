@@ -34,11 +34,14 @@ export class Model extends ResourceManager {
     readonly boneNameMap: Map<string, number | 'NONUNIQUE'> = new Map();
     public collisionMesh: THREE.Mesh | null = null;
     private mot: Mot | null = null;
+    private uvScollCallbacks: ((frameCount: number) => void)[] = [];
 
     async load(loader: Loader, polName: string) {
         const polDir = polName.replace(/(^|\\)[^\\]*$/, '$1');
+        const oprName = polName.replace(/\.pol$/i, '.opr');
         const polData = await loader.load(polName);
-        const pol = new Pol(polData);
+        let opr = loader.exists(oprName) ? new TextDecoder('shift-jis').decode(await loader.load(oprName)) : undefined;
+        const pol = new Pol(polData, opr);
 
         const materials: (THREE.Material | THREE.Material[])[] = [];
         for (let i = 0; i < pol.materials.length; i++) {
@@ -242,6 +245,17 @@ export class Model extends ResourceManager {
                 geometry.addGroup(g.start, g.count, g.materialIndex);
             }
         }
+        if (mesh.uvScroll) {
+            if (material instanceof THREE.Material) {
+                const uvScroll = mesh.uvScroll;
+                this.uvScollCallbacks.push((frameCount: number) => {
+                    const t = frameCount / 30;
+                    (material as THREE.MeshPhongMaterial).map?.offset.set(uvScroll.u * t, uvScroll.v * t);
+                });
+            } else {
+                console.warn('UV scroll not supported for multi-material meshes');
+            }
+        }
         if (!skeleton) {
             return new THREE.Mesh(geometry, material);
         }
@@ -269,6 +283,9 @@ export class Model extends ResourceManager {
     }
 
     async applyMotion(frameCount: number) {
+        for (const scroll of this.uvScollCallbacks) {
+            scroll(frameCount);
+        }
         if (!this.mot) return;
         for (const bm of this.mot.bones) {
             // Prefer match by name, as some MOT have wrong bm.id (e.g. maidsan_ahoge_*.MOT).
