@@ -256,6 +256,13 @@ export class Model extends ResourceManager {
                 console.warn('UV scroll not supported for multi-material meshes');
             }
         }
+        if (mesh.name.includes('(both)')) {
+            if (material instanceof THREE.Material) {
+                material.side = THREE.DoubleSide;
+            } else {
+                console.warn('(both) attribute not supported for multi-material meshes');
+            }
+        }
         if (!skeleton) {
             return new THREE.Mesh(geometry, material);
         }
