@@ -40,7 +40,7 @@ export class Model extends ResourceManager {
         const polDir = polName.replace(/(^|\\)[^\\]*$/, '$1');
         const oprName = polName.replace(/\.pol$/i, '.opr');
         const polData = await loader.load(polName);
-        let opr = loader.exists(oprName) ? new TextDecoder('shift-jis').decode(await loader.load(oprName)) : undefined;
+        const opr = loader.exists(oprName) ? new TextDecoder('shift-jis').decode(await loader.load(oprName)) : undefined;
         const pol = new Pol(polData, opr);
 
         const materials: (THREE.Material | THREE.Material[])[] = [];
@@ -218,6 +218,11 @@ export class Model extends ResourceManager {
                 } else {
                     colors.push(1, 1, 1);
                 }
+                if (mesh.alphas) {
+                    colors.push(mesh.alphas[triangle.alpha_index[i]]);
+                } else {
+                    colors.push(1);
+                }
                 normals.push(triangle.normals[i].x, triangle.normals[i].y, triangle.normals[i].z);
                 if (skeleton) {
                     for (let j = 0; j < 4; j++) {
@@ -239,7 +244,7 @@ export class Model extends ResourceManager {
         if (mesh.light_uvs) {
             geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(light_uvs, 2));
         }
-        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
         if (groups) {
             for (const g of groups) {
                 geometry.addGroup(g.start, g.count, g.materialIndex);
@@ -254,6 +259,13 @@ export class Model extends ResourceManager {
                 });
             } else {
                 console.warn('UV scroll not supported for multi-material meshes');
+            }
+        }
+        if (mesh.name.includes('(alpha)')) {
+            if (material instanceof THREE.Material) {
+                material.transparent = true;
+            } else {
+                console.warn('(alpha) attribute not supported for multi-material meshes');
             }
         }
         if (mesh.name.includes('(both)')) {

@@ -21,7 +21,7 @@ export type Mesh = {
     light_uvs?: Vec2[],
     colors?: Vec3[],
     triangles: Triangle[],
-    uk4: number[],
+    alphas?: number[],
     // Parameters in .opr file
     additiveBlending?: boolean,
     noEdge?: boolean,
@@ -35,7 +35,7 @@ export type Triangle = {
     uv_index: number[],
     light_uv_index: number[],
     color_index: number[],
-    unknowns: number[],
+    alpha_index: number[],
     normals: Vec3[],
     material_index: number
 };
@@ -165,18 +165,21 @@ export class Pol {
                 }
             }
         }
-        let nr_uk4 = 0;
-        const uk4: number[] = [];
+        let nr_alphas = 0;
+        let alphas: number[] | undefined;
         if (this.version >= 2) {
-            nr_uk4 = r.readU32();
-            for (let i = 0; i < nr_uk4; i++) {
-                uk4.push(r.readU8());
+            nr_alphas = r.readU32();
+            if (nr_alphas > 0) {
+                alphas = [];
+                for (let i = 0; i < nr_alphas; i++) {
+                    alphas.push(r.readU8() / 255);
+                }
             }
         }
         const nr_triangles = r.readU32();
         const triangles: Triangle[] = [];
         for (let i = 0; i < nr_triangles; i++) {
-            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_light_uvs, nr_colors, nr_uk4, materials[material]));
+            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_light_uvs, nr_colors, nr_alphas, materials[material]));
         }
         if (this.version === 1) {
             if (r.readU32() !== 1) {
@@ -186,7 +189,7 @@ export class Pol {
                 throw new Error('unexpected mesh footer');
             }
         }
-        return {name, material, vertices, uvs, light_uvs, colors, triangles, uk4};
+        return {name, material, vertices, uvs, light_uvs, colors, triangles, alphas};
     }
 
     parse_vertex(r: BufferReader): Vertex {
@@ -202,7 +205,7 @@ export class Pol {
         return {x: pos.x, y: pos.y, z: pos.z, weights};
     }
 
-    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_light_uvs: number, nr_colors: number, nr_uk4: number, material: MaterialInfo): Triangle {
+    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_light_uvs: number, nr_colors: number, nr_alphas: number, material: MaterialInfo): Triangle {
         const vert_index = [
             r.readU32(),
             r.readU32(),
@@ -242,10 +245,14 @@ export class Pol {
             }
             color_index.push(idx);
         }
-        const unknowns = [];
-        if (nr_uk4) {
+        const alpha_index = [];
+        if (nr_alphas) {
             for (let i = 0; i < 3; i++) {
-                unknowns.push(r.readU32());
+                const idx = r.readU32();
+                if (idx >= nr_alphas) {
+                    throw new Error(`alpha index out of range ${idx} / ${nr_alphas}`);
+                }
+                alpha_index.push(idx);
             }
         }
         const normals: Vec3[] = [];
@@ -256,7 +263,7 @@ export class Pol {
         if (material && material.children.length > 0 && material_index >= material.children.length) {
             material_index = 0;
         }
-        return {vert_index, uv_index, light_uv_index, color_index, unknowns, normals, material_index};
+        return {vert_index, uv_index, light_uv_index, color_index, alpha_index, normals, material_index};
     }
 
     parse_bone(r: BufferReader): Bone {
