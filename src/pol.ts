@@ -11,10 +11,21 @@ export const TextureType = {
     HeightMap: 11,
 } as const;
 
-export type MaterialInfo = {name: string, textures: TextureInfo, children: MaterialInfo[]}
-export type TextureInfo = Map<number, string>;
+export type MaterialInfo = {
+    name: string,
+    attrs: MatterialAttributes,
+    textures: Map<number, string>,
+    children: MaterialInfo[]
+}
+type MatterialAttributes = {
+    alpha?: boolean,
+    env?: boolean,
+    sprite?: boolean,
+}
+
 export type Mesh = {
     name: string,
+    attrs: MeshAttributes,
     material: number,
     vertices: Vertex[],
     uvs: Vec2[],
@@ -29,6 +40,17 @@ export type Mesh = {
     edgeSize?: number,
     uvScroll?: Vec2,
 }
+type MeshAttributes = {
+    alpha?: boolean,
+    both?: boolean,
+    env?: boolean,
+    mirrored?: boolean,
+    nolighting?: boolean,
+    nomakeshadow?: boolean,
+    sprite?: boolean,
+    water?: boolean,
+}
+
 export type Vertex = {x: number, y: number, z: number, weights: BoneWeight[]}
 export type Triangle = {
     vert_index: number[],
@@ -80,6 +102,24 @@ export class Pol {
 
     parse_material(r: BufferReader, can_have_children: boolean): MaterialInfo {
         const name = r.readStrZ();
+        const attrs: MatterialAttributes = {};
+        const regex = /\([^)]+\)/g;
+        let match;
+        while ((match = regex.exec(name)) !== null) {
+            switch (match[0]) {
+                case '(alpha)':
+                    attrs.alpha = true;
+                    break;
+                case '(env)':
+                    attrs.env = true;
+                    break;
+                case '(sprite)':
+                    attrs.sprite = true;
+                    break;
+                default:
+                    console.warn(`Unknown material attribute: ${match[0]}`);
+            }
+        }
         const nr_textures = r.readU32();
         const textures = new Map<number, string>();
         for (let i = 0; i < nr_textures; i++) {
@@ -106,7 +146,7 @@ export class Pol {
                 children.push(this.parse_material(r, false));
             }
         }
-        return {name, textures, children};
+        return {name, attrs, textures, children};
     }
 
     parse_mesh(r: BufferReader, materials: MaterialInfo[]): Mesh | null {
@@ -117,6 +157,39 @@ export class Pol {
         default: throw new Error('unknown mesh type ' + type);
         }
         const name = r.readStrZ();
+        const attrs: MeshAttributes = {};
+        const regex = /\([^)]+\)/g;
+        let match;
+        while ((match = regex.exec(name)) !== null) {
+            switch (match[0]) {
+                case '(alpha)':
+                    attrs.alpha = true;
+                    break;
+                case '(both)':
+                    attrs.both = true;
+                    break;
+                case '(env)':
+                    attrs.env = true;
+                    break;
+                case '(mirrored)':
+                    attrs.mirrored = true;
+                    break;
+                case '(nolighting)':
+                    attrs.nolighting = true;
+                    break;
+                case '(nomakeshadow)':
+                    attrs.nomakeshadow = true;
+                    break;
+                case '(sprite)':
+                    attrs.sprite = true;
+                    break;
+                case '(water)':
+                    attrs.water = true;
+                    break;
+                default:
+                    console.warn(`Unknown mesh attribute: ${match[0]}`);
+            }
+        }
         const material = r.readS32();
         if (material < -1 || material >= materials.length) {
             throw new Error('Material index out of bounds ' + material);
@@ -189,7 +262,7 @@ export class Pol {
                 throw new Error('unexpected mesh footer');
             }
         }
-        return {name, material, vertices, uvs, light_uvs, colors, triangles, alphas};
+        return {name, attrs, material, vertices, uvs, light_uvs, colors, triangles, alphas};
     }
 
     parse_vertex(r: BufferReader): Vertex {

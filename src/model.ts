@@ -46,7 +46,7 @@ export class Model extends ResourceManager {
         const materials: (THREE.Material | THREE.Material[])[] = [];
         for (let i = 0; i < pol.materials.length; i++) {
             const material = pol.materials[i];
-            const isEnv = pol.meshes.some((m) => m && m.material === i && m.name.indexOf('(env)') >= 0)
+            const isEnv = pol.meshes.some((m) => m && m.material === i && m.attrs.env)
             materials.push(await this.createMaterial(material, isEnv, loader, polDir));
         }
 
@@ -273,7 +273,7 @@ export class Model extends ResourceManager {
                 console.warn('(alpha) attribute not supported for multi-material meshes');
             }
         }
-        if (mesh.name.includes('(both)')) {
+        if (mesh.attrs.both) {
             if (material instanceof THREE.Material) {
                 material.side = THREE.DoubleSide;
             } else {
