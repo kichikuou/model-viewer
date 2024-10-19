@@ -54,6 +54,11 @@ export class Model extends ResourceManager {
 
         for (const mesh of pol.meshes) {
             if (!mesh) continue;
+            if (mesh.material === -1) {
+                // kage_esuka.POL in TT3 and mapS_0a.POL in RQ. Junk mesh, ignore.
+                console.log(`${polName}: Mesh "${mesh.name}" has no material.`);
+                continue;
+            }
             const obj = this.initMesh(mesh, materials[mesh.material], skeleton);
             if (mesh.name === 'collision') {
                 this.collisionMesh = obj;
