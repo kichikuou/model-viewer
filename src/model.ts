@@ -280,6 +280,14 @@ export class Model extends ResourceManager {
                 console.warn('(both) attribute not supported for multi-material meshes');
             }
         }
+        if (mesh.additiveBlending) {
+            if (material instanceof THREE.Material) {
+                material.blending = THREE.AdditiveBlending;
+            }
+            else {
+                console.warn('Additive blending not supported for multi-material meshes');
+            }
+        }
         if (!skeleton) {
             return new THREE.Mesh(geometry, material);
         }
