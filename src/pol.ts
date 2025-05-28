@@ -349,7 +349,7 @@ export class Pol {
     }
 
     loadOpr(opr: string) {
-        let currentMesh: Mesh | null = null;
+        let targetMeshes: Mesh[] = [];
         for (const line of opr.split('\n')) {
             const [key, value] = line.split('=').map(s => s.trim());
             if (!key && !value) {
@@ -357,40 +357,44 @@ export class Pol {
             }
             switch (key) {
                 case 'BlendMode':
-                    if (currentMesh) {
-                        currentMesh.additiveBlending = value === 'Add';
-                    }
+                    targetMeshes.forEach(mesh => {
+                        mesh.additiveBlending = value === 'Add';
+                    });
                     break;
                 case 'Edge':
-                    if (currentMesh) {
-                        currentMesh.noEdge = value === '0';
-                    }
+                    targetMeshes.forEach(mesh => {
+                        mesh.noEdge = value === '0';
+                    });
                     break;
                 case 'EdgeColor':
-                    if (currentMesh) {
-                        currentMesh.edgeColor = value.slice(1, -1).split(',').map(Number);
-                    }
+                    targetMeshes.forEach(mesh => {
+                        mesh.edgeColor = value.slice(1, -1).split(',').map(Number);
+                    });
                     break;
                 case 'EdgeSize':
-                    if (currentMesh) {
-                        currentMesh.edgeSize = parseFloat(value);
-                    }
+                    targetMeshes.forEach(mesh => {
+                        mesh.edgeSize = parseFloat(value);
+                    });
                     break;
                 case 'HeightDetection':
                     // do nothing
                     break;
                 case 'Mesh':
                 case 'MeshPart':
-                    currentMesh = this.meshes.find(mesh => mesh?.name === value.slice(1, -1)) || null;
+                    targetMeshes = this.meshes.filter((mesh): mesh is Mesh => mesh !== null && mesh.name === value.slice(1, -1));
+                    break;
+                case 'MeshPartX':
+                    targetMeshes = this.meshes.filter((mesh): mesh is Mesh =>
+                        mesh !== null && mesh.name.includes(value.slice(1, -1)));
                     break;
                 case 'MeshCombinable':
                     // ???
                     break;
                 case 'UVScroll':
                     const [u, v] = value.slice(1, -1).split(',').map(Number);
-                    if (currentMesh) {
-                        currentMesh.uvScroll = {u, v};
-                    }
+                    targetMeshes.forEach(mesh => {
+                        mesh.uvScroll = {u, v};
+                    });
                     break;
                 default:
                     console.warn(`Unknown opr key: ${key}`);
