@@ -349,7 +349,7 @@ export class Pol {
     }
 
     loadOpr(opr: string) {
-        let targetMeshes: Mesh[] = [];
+        let targetMeshes: Mesh[] = this.meshes.filter((mesh): mesh is Mesh => mesh !== null);
         for (const line of opr.split('\n')) {
             const [key, value] = line.split('=').map(s => s.trim());
             if (!key && !value) {
