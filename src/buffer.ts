@@ -77,11 +77,11 @@ export class BufferReader {
             this.offset++;
         }
         this.offset++;
-        let bytes = Array.from(new Uint8Array(this.view.buffer, begin, this.offset - 1 - begin));
+        let bytes = new Uint8Array(this.view.buffer, begin, this.offset - 1 - begin);
         if (filter) {
             bytes = bytes.map(filter);
         }
-        return String.fromCharCode.apply(null, bytes);
+        return new TextDecoder('shift-jis').decode(bytes);
     }
 
     readPosition(): Vec3 {
