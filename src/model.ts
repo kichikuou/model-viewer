@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import {Loader} from './loader.js';
-import {Pol, TextureType, MaterialInfo, Mesh, Bone, Triangle} from './pol.js'
-import {Mot} from './mot.js';
-import {Vec3} from './types.js';
+import { Image, Loader, loadImageList } from './loader.js';
+import { Pol, TextureType, MaterialInfo, Mesh, Bone, Triangle } from './pol.js'
+import { Mot, loadTxa } from './mot.js';
+import { Vec3 } from './types.js';
 
 function toVector3(v: Vec3): THREE.Vector3 {
     return new THREE.Vector3(v.x, v.y, v.z);
@@ -28,12 +28,16 @@ class ResourceManager {
     }
 }
 
+type AnimatedMaterial = { material: THREE.Material, images: Image[] };
+
 export class Model extends ResourceManager {
     readonly model = new THREE.Group();
     readonly boneMap: Map<number, {bone: THREE.Bone, info: Bone, skinIndex: number}> = new Map();
     readonly boneNameMap: Map<string, number | 'NONUNIQUE'> = new Map();
     public collisionMesh: THREE.Mesh | null = null;
+    private animatedMaterials: AnimatedMaterial[] = [];
     private mot: Mot | null = null;
+    private txa: number[] | null = null;
     private uvScollCallbacks: ((frameCount: number) => void)[] = [];
 
     async load(loader: Loader, polName: string) {
@@ -42,6 +46,7 @@ export class Model extends ResourceManager {
         const polData = await loader.load(polName);
         const opr = loader.exists(oprName) ? new TextDecoder('shift-jis').decode(await loader.load(oprName)) : undefined;
         const pol = new Pol(polData, opr);
+        console.log(polName, pol);
 
         const materials: (THREE.Material | THREE.Material[])[] = [];
         for (let i = 0; i < pol.materials.length; i++) {
@@ -78,16 +83,19 @@ export class Model extends ResourceManager {
                 console.log(`${info.name} has no diffuse map.`);
                 return this.track(new THREE.MeshBasicMaterial());
             }
-            const diffuseImage = await loader.loadImage(polDir + diffuseMapName);
-            const diffuseMap = this.track(diffuseImage.texture);
-            diffuseMap.wrapS = diffuseMap.wrapT = THREE.RepeatWrapping;
+            const diffuseImages = await loadImageList(loader, polDir + diffuseMapName);
+            for (const { texture } of diffuseImages) {
+                this.track(texture);
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+            }
+            const diffuseImage = diffuseImages[0];
             const params: THREE.MeshPhongMaterialParameters & THREE.MeshMatcapMaterialParameters = {
                 vertexColors: true
             };
             if (isEnv) {
-                params.matcap = diffuseMap;
+                params.matcap = diffuseImage.texture;
             } else {
-                params.map = diffuseMap;
+                params.map = diffuseImage.texture;
             }
 
             // Normal map
@@ -128,6 +136,9 @@ export class Model extends ResourceManager {
                 material.alphaTest = 0.1;
             }
             material.normalScale.y *= -1;
+            if (diffuseImages.length > 1) {
+                this.animatedMaterials.push({ material, images: diffuseImages});
+            }
             return material;
         };
         if (info.textures.size > 0) {
@@ -305,9 +316,13 @@ export class Model extends ResourceManager {
     }
 
     async loadMotion(loader: Loader, fname: string) {
-        console.log(fname);
         this.mot = new Mot(await loader.load(fname));
-        console.log('Motion loaded');
+        const txaName = fname.replace(/\.mot$/i, '.txa');
+        if (loader.exists(txaName)) {
+            this.txa = loadTxa(await loader.load(txaName));
+        } else {
+            this.txa = null;
+        }
     }
 
     unloadMotion() {
@@ -333,6 +348,20 @@ export class Model extends ResourceManager {
             const frame = bm.frames[i];
             bone.position.set(frame.pos.x, frame.pos.y, frame.pos.z);
             bone.quaternion.set(frame.rotq.x, frame.rotq.y, frame.rotq.z, frame.rotq.w);
+        }
+        if (this.txa) {
+            const textureIndex = this.txa[frameCount % this.txa.length];
+            for (const { material, images } of this.animatedMaterials) {
+                // Fallback to first image if index is out of bounds
+                const image = images[textureIndex < images.length ? textureIndex : 0];
+                if (material instanceof THREE.MeshPhongMaterial) {
+                    material.map = image.texture;
+                    material.map.needsUpdate = true;
+                } else if (material instanceof THREE.MeshMatcapMaterial) {
+                    material.matcap = image.texture;
+                    material.matcap.needsUpdate = true;
+                }
+            }
         }
     }
 }

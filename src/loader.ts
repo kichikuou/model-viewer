@@ -3,7 +3,7 @@ import {readFileAsArrayBuffer} from './buffer.js';
 import {Aar} from './aar.js';
 import {LibModule} from './lib.js';
 
-type Image = {texture: THREE.Texture, hasAlpha: boolean};
+export type Image = { texture: THREE.Texture, hasAlpha: boolean };
 
 export interface Loader {
     exists(fname: string): boolean;
@@ -21,7 +21,7 @@ class FilesLoader implements Loader {
     }
 
     exists(fname: string) {
-        return this.map.has(fname.toLowerCase());
+        return this.map.has(fname.toLowerCase()) || this.map.has(fname.toLowerCase() + '.png');
     }
 
     filenames() {
@@ -39,7 +39,6 @@ class FilesLoader implements Loader {
     }
 
     private getBlob(fname: string): Blob {
-        console.log('loading ' + fname);
         const f = this.map.get(fname.toLowerCase());
         if (!f) {
             throw new Error(fname + ': not found');
@@ -60,7 +59,6 @@ class AarLoader implements Loader {
     }
 
     load(fname: string): Promise<ArrayBuffer> {
-        console.log('loading ' + fname);
         return this.aar.load(fname);
     }
 
@@ -100,4 +98,17 @@ export async function createLoader(files: FileList, pendingLibModule: Promise<Li
         return new AarLoader(aar, lib);
     }
     return new FilesLoader(files);
+}
+
+export async function loadImageList(loader: Loader, fname: string): Promise<Image[]> {
+    const images: Image[] = [await loader.loadImage(fname)];
+    const dot = fname.lastIndexOf('.');
+    if (dot >= 0) {
+        for (let i = 1;; i++) {
+            const name = fname.substring(0, dot) + `[${i}]` + fname.substring(dot);
+            if (!loader.exists(name)) break;
+            images.push(await loader.loadImage(name));
+        }
+    }
+    return images;
 }
