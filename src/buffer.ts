@@ -12,7 +12,7 @@ export function readFileAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
 }
 
 export class BufferReader {
-    private view: DataView;
+    private view: DataView<ArrayBuffer>;
     public offset = 0;
 
     constructor(buf: ArrayBuffer) {

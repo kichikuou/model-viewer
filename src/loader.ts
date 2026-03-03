@@ -80,7 +80,7 @@ function decodeQnt(lib: LibModule, buf: Uint8Array): Image {
     const width = dv.getUint32(16 + ofs, true);
     const height = dv.getUint32(20 + ofs, true);
     const hasAlpha = dv.getUint32(36 + ofs, true) !== 0;
-    const pixels: Uint8Array = lib.memget(decoded, width * height * 4);
+    const pixels: Uint8Array<ArrayBuffer> = lib.memget(decoded, width * height * 4);
     lib.free(decoded);
     const texture = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat, THREE.UnsignedByteType);
     texture.flipY = true;
