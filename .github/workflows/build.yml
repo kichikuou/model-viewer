@@ -11,7 +11,6 @@ jobs:
     steps:
 
     - uses: actions/checkout@v4
-    - uses: oven-sh/setup-bun@v2
 
     - name: Setup cache
       id: cache-system-libraries
@@ -29,8 +28,8 @@ jobs:
     - name: Build
       run: |
         make -C lib
-        bun install
-        bun run build
+        npm install
+        npm run build
 
     - name: Upload artifacts for GitHub Pages
       uses: actions/upload-pages-artifact@v3
