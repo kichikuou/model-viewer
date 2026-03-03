@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import {OrbitControls} from "three/examples/jsm/controls/OrbitControls.js";
-import {createLoader, Loader} from './loader.js';
-import {Model} from './model.js';
-import createLib, {LibModule} from './lib.js';
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { createLoader, Loader } from './loader.ts';
+import { Model } from './model.ts';
+import createLib, { LibModule } from './lib.ts';
 
 export const $: (selector: string) => HTMLElement = document.querySelector.bind(document);
 

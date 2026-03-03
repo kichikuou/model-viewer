@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import {readFileAsArrayBuffer} from './buffer.js';
-import {Aar} from './aar.js';
-import {LibModule} from './lib.js';
+import { readFileAsArrayBuffer } from './buffer.ts';
+import { Aar } from './aar.ts';
+import type { LibModule } from './lib.ts';
 
 export type Image = { texture: THREE.Texture, hasAlpha: boolean };
 

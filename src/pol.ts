@@ -1,5 +1,5 @@
-import {BufferReader} from './buffer.js';
-import {Vec2, Vec3, Vec4} from './types.js';
+import { BufferReader } from './buffer.ts';
+import type  {Vec2, Vec3, Vec4 } from './types.ts';
 
 export const TextureType = {
     ColorMap: 1,

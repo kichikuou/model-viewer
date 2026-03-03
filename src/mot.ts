@@ -1,5 +1,5 @@
-import {BufferReader} from './buffer.js';
-import {Vec3, Vec4} from './types.js';
+import { BufferReader } from './buffer.ts';
+import type { Vec3, Vec4 } from './types.ts';
 
 type MotionFrame = {pos: Vec3, rotq: Vec4, unknown: Vec4}
 type BoneMotion = {name: string, id: number, parent: number, frames: MotionFrame[]}

@@ -2,7 +2,7 @@
   "name": "model-viewer",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.ts",
   "type": "module",
   "scripts": {
     "type": "cd src && tsc",

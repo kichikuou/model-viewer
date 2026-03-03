@@ -1,4 +1,4 @@
-import {Vec3, Vec4} from './types.js';
+import type { Vec3, Vec4 } from './types.ts';
 
 const METERS_PER_INCH = 0.0254;
 

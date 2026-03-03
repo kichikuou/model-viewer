@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { Image, Loader, loadImageList } from './loader.js';
-import { Pol, TextureType, MaterialInfo, Mesh, Bone, Triangle } from './pol.js'
-import { Mot, loadTxa } from './mot.js';
-import { Vec3 } from './types.js';
+import { Image, Loader, loadImageList } from './loader.ts';
+import { Pol, TextureType, MaterialInfo, Mesh, Bone, Triangle } from './pol.ts'
+import { Mot, loadTxa } from './mot.ts';
+import type { Vec3 } from './types.ts';
 
 function toVector3(v: Vec3): THREE.Vector3 {
     return new THREE.Vector3(v.x, v.y, v.z);

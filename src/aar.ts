@@ -1,5 +1,5 @@
-import {BufferReader, readFileAsArrayBuffer} from './buffer.js';
-import {LibModule} from './lib.js';
+import { BufferReader, readFileAsArrayBuffer } from './buffer.ts';
+import type { LibModule } from './lib.ts';
 
 /*
 struct aar_header {
