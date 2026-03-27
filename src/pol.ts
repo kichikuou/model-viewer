@@ -30,9 +30,9 @@ export type Mesh = {
     vertices: Vertex[],
     uvs: Vec2[],
     light_uvs?: Vec2[],
-    uk1?: Vec2[],
+    blendUvs?: Vec2[],
     colors?: Vec3[],
-    uk2?: number[],
+    blendWeights?: number[],
     triangles: Triangle[],
     alphas?: number[],
     // Parameters in .opr file
@@ -58,8 +58,10 @@ export type Triangle = {
     vert_index: number[],
     uv_index: number[],
     light_uv_index: number[],
+    blend_uv_index: number[],
     color_index: number[],
     alpha_index: number[],
+    blend_weight_index: number[],
     normals: Vec3[],
     material_index: number
 };
@@ -235,14 +237,14 @@ export class Pol {
                 light_uvs.push({u, v: -v});
             }
         }
-        let nr_uk1 = 0;
-        const uk1: Vec2[] = [];
+        let nr_blend_uvs = 0;
+        const blendUvs: Vec2[] = [];
         if (this.version >= 4) {
-            nr_uk1 = r.readU32();
-            for (let i = 0; i < nr_uk1; i++) {
+            nr_blend_uvs = r.readU32();
+            for (let i = 0; i < nr_blend_uvs; i++) {
                 const u = r.readF32();
                 const v = r.readF32();
-                uk1.push({u, v});
+                blendUvs.push({u, v: -v});
             }
         }
         const nr_colors = r.readU32();
@@ -278,18 +280,18 @@ export class Pol {
                 }
             }
         }
-        let nr_uk2 = 0;
-        const uk2: number[] = [];
+        let nr_blend_weights = 0;
+        const blendWeights: number[] = [];
         if (this.version >= 4) {
-            nr_uk2 = r.readU32();
-            for (let i = 0; i < nr_uk2; i++) {
-                uk2.push(r.readU8());
+            nr_blend_weights = r.readU32();
+            for (let i = 0; i < nr_blend_weights; i++) {
+                blendWeights.push(r.readU8() / 255);
             }
         }
         const nr_triangles = r.readU32();
         const triangles: Triangle[] = [];
         for (let i = 0; i < nr_triangles; i++) {
-            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_light_uvs, nr_uk1, nr_colors, nr_alphas, nr_uk2, materials[material]));
+            triangles.push(this.parse_triangle(r, nr_vertices, nr_uvs, nr_light_uvs, nr_blend_uvs, nr_colors, nr_alphas, nr_blend_weights, materials[material]));
         }
         if (this.version === 1) {
             if (r.readU32() !== 1) {
@@ -299,7 +301,7 @@ export class Pol {
                 throw new Error('unexpected mesh footer');
             }
         }
-        return {name, attrs, material, vertices, uvs, light_uvs, uk1, colors, alphas, uk2, triangles};
+        return {name, attrs, material, vertices, uvs, light_uvs, blendUvs: blendUvs.length > 0 ? blendUvs : undefined, colors, alphas, blendWeights: blendWeights.length > 0 ? blendWeights : undefined, triangles};
     }
 
     parse_vertex(r: BufferReader): Vertex {
@@ -315,7 +317,7 @@ export class Pol {
         return {x: pos.x, y: pos.y, z: pos.z, weights};
     }
 
-    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_light_uvs: number, nr_uk1: number, nr_colors: number, nr_alphas: number, nr_uk2: number, material: MaterialInfo): Triangle {
+    parse_triangle(r: BufferReader, nr_vertices: number, nr_uvs: number, nr_light_uvs: number, nr_blend_uvs: number, nr_colors: number, nr_alphas: number, nr_blend_weights: number, material: MaterialInfo): Triangle {
         const vert_index = [
             r.readU32(),
             r.readU32(),
@@ -347,14 +349,14 @@ export class Pol {
                 }
             }
         }
-        const unknowns = [];
-        if (nr_uk1) {
+        const blend_uv_index: number[] = [];
+        if (nr_blend_uvs) {
             for (let i = 0; i < 3; i++) {
                 const idx = r.readU32() - nr_uvs - nr_light_uvs;
-                if (idx < 0 || idx >= nr_uk1) {
-                    throw new Error(`uk1_index out of range ${idx} / ${nr_uk1}`);
+                if (idx < 0 || idx >= nr_blend_uvs) {
+                    throw new Error(`blend_uv_index out of range ${idx} / ${nr_blend_uvs}`);
                 }
-                unknowns.push(idx);
+                blend_uv_index.push(idx);
             }
         }
         const color_index = [];
@@ -375,13 +377,14 @@ export class Pol {
                 alpha_index.push(idx);
             }
         }
-        if (nr_uk2) {
+        const blend_weight_index: number[] = [];
+        if (nr_blend_weights) {
             for (let i = 0; i < 3; i++) {
                 const idx = r.readU32();
-                if (idx >= nr_uk2) {
-                    throw new Error(`uk2_index out of range ${idx} / ${nr_uk2}`);
+                if (idx >= nr_blend_weights) {
+                    throw new Error(`blend_weight_index out of range ${idx} / ${nr_blend_weights}`);
                 }
-                unknowns.push(idx);
+                blend_weight_index.push(idx);
             }
         }
         const normals: Vec3[] = [];
@@ -392,7 +395,7 @@ export class Pol {
         if (material && material.children.length > 0 && material_index >= material.children.length) {
             material_index = 0;
         }
-        return {vert_index, uv_index, light_uv_index, color_index, alpha_index, normals, material_index};
+        return {vert_index, uv_index, light_uv_index, blend_uv_index, color_index, alpha_index, blend_weight_index, normals, material_index};
     }
 
     parse_bone(r: BufferReader): Bone {

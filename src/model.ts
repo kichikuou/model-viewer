@@ -74,7 +74,7 @@ export class Model extends ResourceManager {
     }
 
     private async createMaterial(info: MaterialInfo, isEnv: boolean, loader: Loader, polDir: string): Promise<THREE.Material | THREE.Material[]> {
-        const create = async (info: MaterialInfo) => {
+        const create = async (info: MaterialInfo): Promise<THREE.Material> => {
             const textureInfo = info.textures;
 
             // Diffuse map
@@ -141,10 +141,61 @@ export class Model extends ResourceManager {
             }
             return material;
         };
+
+        const createBlended = async (group: MaterialInfo): Promise<THREE.Material> => {
+            // Group node: blend grandchild[0] (base) and grandchild[1] (blend) textures
+            const baseMat = group.children[0];
+            const blendMat = group.children[1];
+            const material = await create(baseMat) as THREE.MeshPhongMaterial;
+
+            const blendDiffuseName = blendMat.textures.get(TextureType.ColorMap);
+            if (!blendDiffuseName) {
+                return material;
+            }
+            const blendImage = await loader.loadImage(polDir + blendDiffuseName);
+            const blendMap = this.track(blendImage.texture);
+            blendMap.wrapS = blendMap.wrapT = THREE.RepeatWrapping;
+
+            material.onBeforeCompile = (shader) => {
+                shader.uniforms.blendMap = { value: blendMap };
+                shader.vertexShader = shader.vertexShader.replace(
+                    'void main() {',
+                    `attribute vec2 blendUv;
+attribute float blendWeight;
+varying vec2 vBlendUv;
+varying float vBlendWeight;
+void main() {
+    vBlendUv = blendUv;
+    vBlendWeight = blendWeight;`
+                );
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    'void main() {',
+                    `uniform sampler2D blendMap;
+varying vec2 vBlendUv;
+varying float vBlendWeight;
+void main() {`
+                );
+                shader.fragmentShader = shader.fragmentShader.replace(
+                    '#include <map_fragment>',
+                    `#include <map_fragment>
+    {
+        vec4 blendTexel = texture2D(blendMap, vBlendUv);
+        diffuseColor.rgb = mix(diffuseColor.rgb, blendTexel.rgb, vBlendWeight);
+    }`
+                );
+            };
+            return material;
+        };
+
         if (info.textures.size > 0) {
             return create(info);
         }
-        return Promise.all(info.children.map(create));
+        return Promise.all(info.children.map((child) => {
+            if (child.children.length > 0 && child.textures.size === 0) {
+                return createBlended(child);
+            }
+            return create(child);
+        }));
     }
 
     private initBones(polBones: Bone[]): THREE.Skeleton | null {
@@ -213,6 +264,8 @@ export class Model extends ResourceManager {
         const positions: number[] = [];
         const uvs: number[] = [];
         const light_uvs: number[] = [];
+        const blend_uvs: number[] = [];
+        const blend_weights: number[] = [];
         const colors: number[] = [];
         const normals: number[] = [];
         const skinIndices: number[] = [];
@@ -227,6 +280,21 @@ export class Model extends ResourceManager {
                 if (mesh.light_uvs) {
                     const light_uv = mesh.light_uvs[triangle.light_uv_index[i]];
                     light_uvs.push(light_uv.u, light_uv.v);
+                }
+                if (mesh.blendUvs) {
+                    if (triangle.blend_uv_index.length > 0) {
+                        const blend_uv = mesh.blendUvs[triangle.blend_uv_index[i]];
+                        blend_uvs.push(blend_uv.u, blend_uv.v);
+                    } else {
+                        blend_uvs.push(uv.u, uv.v);
+                    }
+                }
+                if (mesh.blendWeights) {
+                    if (triangle.blend_weight_index.length > 0) {
+                        blend_weights.push(mesh.blendWeights[triangle.blend_weight_index[i]]);
+                    } else {
+                        blend_weights.push(0);
+                    }
                 }
                 if (mesh.colors) {
                     const color = mesh.colors[triangle.color_index[i]];
@@ -259,6 +327,12 @@ export class Model extends ResourceManager {
         geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         if (mesh.light_uvs) {
             geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(light_uvs, 2));
+        }
+        if (mesh.blendUvs) {
+            geometry.setAttribute('blendUv', new THREE.Float32BufferAttribute(blend_uvs, 2));
+        }
+        if (mesh.blendWeights) {
+            geometry.setAttribute('blendWeight', new THREE.Float32BufferAttribute(blend_weights, 1));
         }
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
         if (groups) {
