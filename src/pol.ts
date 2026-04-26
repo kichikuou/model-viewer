@@ -85,7 +85,7 @@ export class Pol {
         }
         const nr_materials = r.readU32();
         for (let i = 0; i < nr_materials; i++) {
-            this.materials.push(this.parse_material(r, true));
+            this.materials.push(this.parse_material(r, 0));
         }
         const nr_meshes = r.readU32();
         for (let i = 0; i < nr_meshes; i++) {
@@ -104,7 +104,7 @@ export class Pol {
         }
     }
 
-    parse_material(r: BufferReader, can_have_children: boolean): MaterialInfo {
+    parse_material(r: BufferReader, level: number): MaterialInfo {
         const name = r.readStrZ();
         const attrs: MatterialAttributes = {};
         const regex = /\([^)]+\)/g;
@@ -126,14 +126,20 @@ export class Pol {
         }
         const is_group = this.version >= 4 ? r.readU32() : 0;
         if (is_group) {
+            if (level >= 2) {
+                throw new Error('material group nesting too deep');
+            }
             const uk1 = r.readU32();
             if (uk1 !== 0) {
                 console.log('unknown group uk1 ' + uk1);
             }
             const children: MaterialInfo[] = [];
             const nr_children = r.readU32();
+            if (level === 1 && nr_children !== 2) {
+                throw new Error('material group at level 1 must have exactly 2 children');
+            }
             for (let i = 0; i < nr_children; i++) {
-                children.push(this.parse_material(r, true));
+                children.push(this.parse_material(r, level + 1));
             }
             return {name, attrs, textures: new Map<number, string>(), children};
         }
@@ -158,13 +164,18 @@ export class Pol {
             throw new Error('no basic texture');
         }
         const children: MaterialInfo[] = [];
-        if (can_have_children) {
+        if (this.version >= 4) {
+            const uk2 = r.readU32();
+            if (uk2 !== 0) {
+                console.log('unknown material uk2 ' + uk2);
+            }
+        } else if (level === 0) {
             const nr_children = r.readU32();
             if (nr_textures > 0 && nr_children > 0) {
                 throw new Error('A material cannot have both textures and children');
             }
             for (let i = 0; i < nr_children; i++) {
-                children.push(this.parse_material(r, false));
+                children.push(this.parse_material(r, level + 1));
             }
         }
         return {name, attrs, textures, children};
