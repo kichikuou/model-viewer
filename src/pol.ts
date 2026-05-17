@@ -41,6 +41,8 @@ export type Mesh = {
     edgeColor?: number[],
     edgeSize?: number,
     uvScroll?: Vec2,
+    specularColor?: Vec3,
+    specularPower?: number,
 }
 type MeshAttributes = {
     alpha?: boolean,
@@ -459,6 +461,17 @@ export class Pol {
                     break;
                 case 'MeshCombinable':
                     // ???
+                    break;
+                case 'SpecularColor':
+                    const [r, g, b] = value.slice(1, -1).split(',').map(Number);
+                    targetMeshes.forEach(mesh => {
+                        mesh.specularColor = {x: r, y: g, z: b};
+                    });
+                    break;
+                case 'SpecularPower':
+                    targetMeshes.forEach(mesh => {
+                        mesh.specularPower = parseFloat(value);
+                    });
                     break;
                 case 'UVScroll':
                     const [u, v] = value.slice(1, -1).split(',').map(Number);

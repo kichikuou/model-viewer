@@ -365,6 +365,19 @@ void main() {`
                 console.warn('(both) attribute not supported for multi-material meshes');
             }
         }
+        if (mesh.specularColor || mesh.specularPower !== undefined) {
+            const mats = Array.isArray(material) ? material : [material];
+            for (const mat of mats) {
+                if (mat instanceof THREE.MeshPhongMaterial) {
+                    if (mesh.specularColor) {
+                        mat.specular.setRGB(mesh.specularColor.x, mesh.specularColor.y, mesh.specularColor.z);
+                    }
+                    if (mesh.specularPower !== undefined) {
+                        mat.shininess = mesh.specularPower;
+                    }
+                }
+            }
+        }
         if (mesh.additiveBlending) {
             if (material instanceof THREE.Material) {
                 material.blending = THREE.AdditiveBlending;
