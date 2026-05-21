@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { Image, Loader, loadImageList } from './loader.ts';
 import { Pol, TextureType, MaterialInfo, Mesh, Bone, Triangle } from './pol.ts'
 import { Mot, loadTxa } from './mot.ts';
+import { Mpr, MprController } from './mpr.ts';
 import type { Vec3 } from './types.ts';
 
 function toVector3(v: Vec3): THREE.Vector3 {
@@ -28,7 +29,7 @@ class ResourceManager {
     }
 }
 
-type AnimatedMaterial = { material: THREE.Material, images: Image[] };
+export type AnimatedMaterial = { material: THREE.Material, images: Image[] };
 
 export class Model extends ResourceManager {
     readonly model = new THREE.Group();
@@ -36,8 +37,10 @@ export class Model extends ResourceManager {
     readonly boneNameMap: Map<string, number | 'NONUNIQUE'> = new Map();
     public collisionMesh: THREE.Mesh | null = null;
     private animatedMaterials: AnimatedMaterial[] = [];
+    private meshObjects: Map<string, THREE.Mesh> = new Map();
     private mot: Mot | null = null;
     private txa: number[] | null = null;
+    private mprController: MprController | null = null;
     private uvScollCallbacks: ((frameCount: number) => void)[] = [];
 
     async load(loader: Loader, polName: string) {
@@ -65,10 +68,12 @@ export class Model extends ResourceManager {
                 continue;
             }
             const obj = this.initMesh(mesh, materials[mesh.material], skeleton);
+            obj.name = mesh.name;
             if (mesh.name === 'collision') {
                 this.collisionMesh = obj;
             } else {
                 this.model.add(obj);
+                this.meshObjects.set(mesh.name, obj);
             }
         }
     }
@@ -404,16 +409,28 @@ void main() {`
 
     async loadMotion(loader: Loader, fname: string) {
         this.mot = new Mot(await loader.load(fname));
+        this.mprController?.dispose();
+        this.mprController = null;
+        this.txa = null;
+        // .mpr (SealEngine) and .txa (TapirEngine) are mutually exclusive.
+        const mprName = fname.replace(/\.mot$/i, '.mpr');
         const txaName = fname.replace(/\.mot$/i, '.txa');
-        if (loader.exists(txaName)) {
+        if (loader.exists(mprName)) {
+            const text = new TextDecoder('shift-jis').decode(await loader.load(mprName));
+            const mpr = Mpr.parse(text);
+            this.mprController = new MprController(
+                mpr, this.meshObjects, this.animatedMaterials, this.model,
+                (m) => { this.track(m); },
+            );
+        } else if (loader.exists(txaName)) {
             this.txa = loadTxa(await loader.load(txaName));
-        } else {
-            this.txa = null;
         }
     }
 
     unloadMotion() {
         this.mot = null;
+        this.mprController?.dispose();
+        this.mprController = null;
     }
 
     async applyMotion(frameCount: number) {
@@ -449,6 +466,10 @@ void main() {`
                     material.matcap.needsUpdate = true;
                 }
             }
+        }
+        if (this.mprController) {
+            const f = frameCount % (this.mot.nr_frames - 1) + 1;
+            this.mprController.apply(f);
         }
     }
 }
