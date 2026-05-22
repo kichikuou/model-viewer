@@ -28,7 +28,7 @@ jobs:
     - name: Build
       run: |
         make -C lib
-        npm install
+        npm ci
         npm run type
         npm run build
 
