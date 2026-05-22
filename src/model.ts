@@ -1,8 +1,9 @@
 import * as THREE from "three";
-import { Image, Loader, loadImageList } from './loader.ts';
-import { Pol, TextureType, MaterialInfo, Mesh, Bone, Triangle } from './pol.ts'
+import { Loader } from './loader.ts';
+import { Pol, Mesh, Bone, Triangle } from './pol.ts'
 import { Mot, loadTxa } from './mot.ts';
 import { Mpr, MprController } from './mpr.ts';
+import { AnimatedMaterial, MaterialFactory } from './material_factory.ts';
 import type { Vec3 } from './types.ts';
 
 function toVector3(v: Vec3): THREE.Vector3 {
@@ -29,8 +30,6 @@ class ResourceManager {
     }
 }
 
-export type AnimatedMaterial = { material: THREE.Material, images: Image[] };
-
 export class Model extends ResourceManager {
     readonly model = new THREE.Group();
     readonly boneMap: Map<number, {bone: THREE.Bone, info: Bone, skinIndex: number}> = new Map();
@@ -51,12 +50,14 @@ export class Model extends ResourceManager {
         const pol = new Pol(polData, opr);
         console.log(polName, pol);
 
+        const factory = new MaterialFactory(loader, polDir, (o) => this.track(o));
         const materials: (THREE.Material | THREE.Material[])[] = [];
         for (let i = 0; i < pol.materials.length; i++) {
             const material = pol.materials[i];
             const isEnv = pol.meshes.some((m) => m && m.material === i && m.attrs.env)
-            materials.push(await this.createMaterial(material, isEnv, loader, polDir));
+            materials.push(await factory.create(material, isEnv));
         }
+        this.animatedMaterials = factory.animatedMaterials;
 
         const skeleton = this.initBones(pol.bones);
 
@@ -76,131 +77,6 @@ export class Model extends ResourceManager {
                 this.meshObjects.set(mesh.name, obj);
             }
         }
-    }
-
-    private async createMaterial(info: MaterialInfo, isEnv: boolean, loader: Loader, polDir: string): Promise<THREE.Material | THREE.Material[]> {
-        const create = async (info: MaterialInfo): Promise<THREE.Material> => {
-            const textureInfo = info.textures;
-
-            // Diffuse map
-            const diffuseMapName = textureInfo.get(TextureType.ColorMap);
-            if (!diffuseMapName) {
-                console.log(`${info.name} has no diffuse map.`);
-                return this.track(new THREE.MeshBasicMaterial());
-            }
-            const diffuseImages = await loadImageList(loader, polDir + diffuseMapName);
-            for (const { texture } of diffuseImages) {
-                this.track(texture);
-                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-            }
-            const diffuseImage = diffuseImages[0];
-            const params: THREE.MeshPhongMaterialParameters & THREE.MeshMatcapMaterialParameters = {
-                vertexColors: true
-            };
-            if (isEnv) {
-                params.matcap = diffuseImage.texture;
-            } else {
-                params.map = diffuseImage.texture;
-            }
-
-            // Normal map
-            const normalMapName = textureInfo.get(TextureType.NormalMap);
-            if (normalMapName) {
-                const normalImage = await loader.loadImage(polDir + normalMapName);
-                const normalMap = this.track(normalImage.texture);
-                normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
-                params.normalMap = normalMap;
-            }
-
-            // Light map
-            const lightMapName = textureInfo.get(TextureType.LightMap);
-            if (lightMapName) {
-                const lightImage = await loader.loadImage(polDir + lightMapName);
-                const lightMap = this.track(lightImage.texture);
-                lightMap.wrapS = lightMap.wrapT = THREE.RepeatWrapping;
-                params.lightMap = lightMap;
-                params.lightMapIntensity = 0.5;
-            }
-
-            // Alpha map
-            const alphaMapName = textureInfo.get(TextureType.AlphaMap);
-            if (alphaMapName && alphaMapName !== diffuseMapName) {
-                const alphaImage = await loader.loadImage(polDir + alphaMapName);
-                if (alphaImage.hasAlpha) {
-                    console.warn(`Alpha image ${info.name} is not grayscale.`);
-                }
-                const alphaMap = this.track(alphaImage.texture);
-                alphaMap.wrapS = alphaMap.wrapT = THREE.RepeatWrapping;
-                params.alphaMap = alphaMap;
-            }
-
-            const material = this.track(isEnv ? new THREE.MeshMatcapMaterial(params) : new THREE.MeshPhongMaterial(params));
-            if (params.alphaMap) {
-                material.transparent = true;
-            } else if (diffuseImage.hasAlpha) {
-                material.alphaTest = 0.1;
-            }
-            material.normalScale.y *= -1;
-            if (diffuseImages.length > 1) {
-                this.animatedMaterials.push({ material, images: diffuseImages});
-            }
-            return material;
-        };
-
-        const createBlended = async (group: MaterialInfo): Promise<THREE.Material> => {
-            // Group node: blend grandchild[0] (base) and grandchild[1] (blend) textures
-            const baseMat = group.children[0];
-            const blendMat = group.children[1];
-            const material = await create(baseMat) as THREE.MeshPhongMaterial;
-
-            const blendDiffuseName = blendMat.textures.get(TextureType.ColorMap);
-            if (!blendDiffuseName) {
-                return material;
-            }
-            const blendImage = await loader.loadImage(polDir + blendDiffuseName);
-            const blendMap = this.track(blendImage.texture);
-            blendMap.wrapS = blendMap.wrapT = THREE.RepeatWrapping;
-
-            material.onBeforeCompile = (shader) => {
-                shader.uniforms.blendMap = { value: blendMap };
-                shader.vertexShader = shader.vertexShader.replace(
-                    'void main() {',
-                    `attribute vec2 blendUv;
-attribute float blendWeight;
-varying vec2 vBlendUv;
-varying float vBlendWeight;
-void main() {
-    vBlendUv = blendUv;
-    vBlendWeight = blendWeight;`
-                );
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    'void main() {',
-                    `uniform sampler2D blendMap;
-varying vec2 vBlendUv;
-varying float vBlendWeight;
-void main() {`
-                );
-                shader.fragmentShader = shader.fragmentShader.replace(
-                    '#include <map_fragment>',
-                    `#include <map_fragment>
-    {
-        vec4 blendTexel = texture2D(blendMap, vBlendUv);
-        diffuseColor.rgb = mix(diffuseColor.rgb, blendTexel.rgb, vBlendWeight);
-    }`
-                );
-            };
-            return material;
-        };
-
-        if (info.textures.size > 0) {
-            return create(info);
-        }
-        return Promise.all(info.children.map((child) => {
-            if (child.children.length > 0 && child.textures.size === 0) {
-                return createBlended(child);
-            }
-            return create(child);
-        }));
     }
 
     private initBones(polBones: Bone[]): THREE.Skeleton | null {

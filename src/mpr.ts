@@ -8,7 +8,7 @@
 
 import * as THREE from "three";
 import { Image } from './loader.ts';
-import type { AnimatedMaterial } from './model.ts';
+import type { AnimatedMaterial } from './material_factory.ts';
 
 export type FloatKey = { frame: number, value: number };
 export type Vec3Key  = { frame: number, r: number, g: number, b: number };
